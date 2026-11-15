@@ -24,6 +24,7 @@ A drag-and-drop tool for building the road scenes, junctions, vehicles and road 
 | Pan | Hold the right mouse button and drag (Space+drag or middle-drag also work) |
 | Editable arrows | Pick one from the Arrows group. Drag the white dots to stretch or bend it, drag a hollow dot to add a bend, double-click a dot to remove it. Colour, thickness and smooth bends are in the side panel |
 | Text labels | Extras, Text: change the text, colour and size in the side panel |
+| Save for later | Select one or more items (for example a bent arrow with its colour and thickness) and press **Save to library**. It appears under **My library** at the top of the item list; drag or click it to reuse it. **Export** and **Import** move your library between browsers, since each browser (and the GitHub Pages site versus a local file) keeps its own |
 | Match road sizes | "Match road sizes" button; new roads also copy the size of existing ones |
 
 ## Notes on the signs

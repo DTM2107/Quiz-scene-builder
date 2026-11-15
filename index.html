@@ -17,7 +17,7 @@ aside{background:var(--p);overflow:auto;padding:10px}
 h2{font-size:13px;margin:12px 0 6px}h2:first-child{margin-top:0}
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .pi{border:1px solid var(--b);border-radius:6px;padding:3px;text-align:center;cursor:grab;font-size:11px;color:var(--m);background:#f3f4f6;user-select:none}
-.pi:hover{border-color:var(--a)}.pi svg{width:100%;height:56px;display:block}.pi span{display:block;color:#374151;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pi:hover{border-color:var(--a)}.pi{position:relative}.lx{position:absolute;top:1px;right:1px;padding:0 5px;line-height:16px;font-size:13px}.pi svg{width:100%;height:56px;display:block}.pi span{display:block;color:#374151;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #stage{padding:12px;overflow:auto;display:flex;align-items:flex-start;justify-content:center}
 #c{width:100%;max-width:1100px;height:auto;max-height:calc(100vh - 100px);background:var(--ws);box-shadow:0 1px 6px #0003;touch-action:none}
 #c [data-id]{cursor:move}
@@ -35,7 +35,7 @@ label{display:block;margin:8px 0;color:var(--m);font-size:12px}label input[type=
 <button id="zo" title="Zoom out" aria-label="Zoom out">−</button><button id="zr" title="Reset zoom" style="min-width:56px">100%</button><button id="zi" title="Zoom in" aria-label="Zoom in">+</button><button id="mr" title="Give every road piece and marking the size of the selected one (or the first road)">Match road sizes</button>
 <span style="flex:1"></span>
 <input type="text" id="fn" value="scene-1" size="12" aria-label="File name">
-<button id="sv">Save project</button><button id="op">Open project</button><input type="file" id="fi" accept=".json" hidden>
+<button id="sv">Save project</button><button id="op">Open project</button><input type="file" id="fi" accept=".json" hidden><input type="file" id="li" accept=".json" hidden>
 <button id="xs">Export SVG</button><button id="xp" class="pri">Export PNG</button>
 </header>
 <main>
@@ -180,11 +180,31 @@ function z(front){if(!SEL.length)return;const rest=S.items.filter(i=>!SEL.includ
 function rot(d){const a=sel();if(!a.length)return;const cx=a.reduce((t,i)=>t+i.x,0)/a.length,cy=a.reduce((t,i)=>t+i.y,0)/a.length,c=Math.cos(d*Math.PI/180),n=Math.sin(d*Math.PI/180);
  a.forEach(i=>{if(a.length>1){const dx=i.x-cx,dy=i.y-cy;i.x=Math.round(cx+dx*c-dy*n);i.y=Math.round(cy+dx*n+dy*c)}i.r=((i.r+d+180)%360+360)%360-180});commit();render();panel()}
 // palette
-$('#pal').innerHTML=['Roads','Markings','Arrows','Vehicles','Regulatory','Prohibition','Warning','Signals','Extras'].map(g=>`<h2>${g}</h2><div class="grid">`+Object.entries(T).filter(([k,t])=>t.g==g).map(([k,t])=>`<div class="pi" draggable="true" data-t="${k}" title="${t.n}: drag onto the canvas, or click"><svg viewBox="-50 -50 100 100"><g transform="scale(${t.t})">${t.d({col:t.col,text:t.txt,pts:t.pts,w:t.w,smooth:t.smooth})}</g></svg><span>${t.n}</span></div>`).join('')+'</div>').join('')+'<p class="hint">Drag items onto the canvas, or click to add at the centre. Arrows: white is informative, yellow is regulatory (change it under Colour).</p>';
+$('#pal').innerHTML='<div id="lib"></div>'+['Roads','Markings','Arrows','Vehicles','Regulatory','Prohibition','Warning','Signals','Extras'].map(g=>`<h2>${g}</h2><div class="grid">`+Object.entries(T).filter(([k,t])=>t.g==g).map(([k,t])=>`<div class="pi" draggable="true" data-t="${k}" title="${t.n}: drag onto the canvas, or click"><svg viewBox="-50 -50 100 100"><g transform="scale(${t.t})">${t.d({col:t.col,text:t.txt,pts:t.pts,w:t.w,smooth:t.smooth})}</g></svg><span>${t.n}</span></div>`).join('')+'</div>').join('')+'<p class="hint">Drag items onto the canvas, or click to add at the centre. Arrows: white is informative, yellow is regulatory (change it under Colour).</p>';
 $('#pal').addEventListener('dragstart',e=>{const p=e.target.closest('.pi');if(p)e.dataTransfer.setData('text/plain',p.dataset.t)});
-$('#pal').addEventListener('click',e=>{const p=e.target.closest('.pi');if(p)add(p.dataset.t,S.w/2,S.h/2)});
+$('#pal').addEventListener('click',e=>{
+ const d=e.target.closest('[data-del]');if(d){if(confirm('Delete this saved item from your library?')){LIB=LIB.filter(l=>l.id!=d.dataset.del);saveLib();buildLib()}return}
+ const b=e.target.closest('[data-lib]');if(b){b.dataset.lib=='x'?exportLib():$('#li').click();return}
+ const p=e.target.closest('.pi');if(!p)return;const t=p.dataset.t;t.startsWith('lib:')?addLib(t.slice(4),S.w/2,S.h/2):add(t,S.w/2,S.h/2)});
+// my library (saved items for later use)
+let LIB=[];try{LIB=JSON.parse(localStorage.getItem('qsb-lib'))||[]}catch{}
+if(!Array.isArray(LIB))LIB=[];
+const saveLib=()=>{try{localStorage.setItem('qsb-lib',JSON.stringify(LIB))}catch{}};
+const libExt=l=>Math.max(30,...l.items.map(i=>Math.hypot(i.x,i.y)+(i.pts?Math.max(...i.pts.map(p=>Math.hypot(p.x,p.y)))+(i.w||10)*2:(T[i.type].g=='Roads'?230:50*(i.s||1)))));
+function buildLib(){const el=$('#lib');if(!el)return;
+ el.innerHTML='<h2>My library</h2>'+(LIB.length?'<div class="grid">'+LIB.map(l=>{const E=Math.round(libExt(l));return `<div class="pi" draggable="true" data-t="lib:${l.id}" title="${esc(l.name)}: drag onto the canvas, or click"><button class="lx" data-del="${l.id}" title="Delete" aria-label="Delete ${esc(l.name)}">×</button><svg viewBox="${-E} ${-E} ${2*E} ${2*E}">${l.items.map(mk).join('')}</svg><span>${esc(l.name)}</span></div>`}).join('')+'</div>':'<p class="hint">Select items on the canvas and press "Save to library" to keep them here for later use.</p>')+'<div class="row" style="margin-bottom:6px"><button data-lib="x">Export</button><button data-lib="i">Import</button></div>'}
+function saveToLib(){const a=S.items.filter(i=>SEL.includes(i.id));if(!a.length)return;
+ const name=prompt('Name for this saved item:',a.length>1?a.length+' items':T[a[0].type].n);if(name===null)return;
+ const cx=a.reduce((t,i)=>t+i.x,0)/a.length,cy=a.reduce((t,i)=>t+i.y,0)/a.length;
+ LIB.push({id:Date.now().toString(36),name:name.trim()||'Saved item',items:a.map(o=>({...cp(o),id:0,x:Math.round(o.x-cx),y:Math.round(o.y-cy)}))});saveLib();buildLib()}
+function addLib(id,x,y){const l=LIB.find(v=>v.id==id);if(!l)return;
+ SEL=l.items.map(o=>{const n={...cp(o),id:++S.nid,x:sn(x)+o.x,y:sn(y)+o.y};S.items.push(n);return n.id});commit();render();panel()}
+const exportLib=()=>save(new Blob([JSON.stringify(LIB)],{type:'application/json'}),'my-library.json');
+$('#li').onchange=e=>{const f=e.target.files[0];if(!f)return;f.text().then(t=>{try{const d=JSON.parse(t);if(!Array.isArray(d))throw 0;
+ const ok=d.filter(l=>l&&Array.isArray(l.items)&&l.items.length&&l.items.every(i=>T[i.type])).map(l=>({...l,id:Date.now().toString(36)+Math.random().toString(36).slice(2,5)}));
+ if(!ok.length)throw 0;LIB=LIB.concat(ok);saveLib();buildLib()}catch{alert('That file is not a saved library from this tool.')}});e.target.value=''};
 svg.addEventListener('dragover',e=>e.preventDefault());
-svg.addEventListener('drop',e=>{e.preventDefault();const t=e.dataTransfer.getData('text/plain');if(T[t]){const p=pt(e);add(t,p.x,p.y)}});
+svg.addEventListener('drop',e=>{e.preventDefault();const t=e.dataTransfer.getData('text/plain');const p=pt(e);if(T[t])add(t,p.x,p.y);else if(t.startsWith('lib:'))addLib(t.slice(4),p.x,p.y)});
 // select and move
 const MQ=document.createElement('div');MQ.style.cssText='position:fixed;border:1px dashed #2563eb;background:#2563eb22;pointer-events:none;display:none;z-index:9';document.body.appendChild(MQ);
 let mq=null;
@@ -229,7 +249,8 @@ function panel(){const a=sel(),el=$('#pp'),it=a[0];
   const bind=(id,fn)=>{const n=$(id);if(n){n.oninput=()=>{fn(n.value);render(true)};n.onchange=()=>{commit();panel()}}};
   bind('#pr',v=>it.r=+v);bind('#ps',v=>it.s=v/100);bind('#pc',v=>it.col=v);bind('#pt',v=>it.text=v);bind('#pw',v=>it.w=+v);const pm=$('#pm');if(pm)pm.onchange=()=>{it.smooth=pm.checked;commit();render();panel()}}
  if(a.some(i=>fam(i.type)=='road'))el.querySelector('.row').insertAdjacentHTML('beforeend','<button data-a="m" title="Give every road piece and marking the same size as the selected one">Match road sizes</button>');
- el.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>({l:()=>rot(-15),r:()=>rot(15),d:dup,f:()=>z(1),b:()=>z(0),x:del,m:matchRoads})[b.dataset.a]())}
+ el.querySelector('.row').insertAdjacentHTML('beforeend','<button data-a="lib" title="Keep this selection in My library for later use">Save to library</button>');
+ el.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>({l:()=>rot(-15),r:()=>rot(15),d:dup,f:()=>z(1),b:()=>z(0),x:del,m:matchRoads,lib:saveToLib})[b.dataset.a]())}
 document.addEventListener('keydown',e=>{if(/INPUT|SELECT/.test(e.target.tagName)&&e.target.type!='checkbox')return;
  const k=e.key.toLowerCase(),a=sel(),mod=e.ctrlKey||e.metaKey;
  if(mod&&k=='z'){e.preventDefault();undo()}
@@ -257,5 +278,5 @@ $('#xs').onclick=()=>save(new Blob([xml()],{type:'image/svg+xml'}),fn()+'.svg');
 $('#xp').onclick=()=>{const s=xml(),im=new Image();im.onload=()=>{const k=document.createElement('canvas');k.width=S.w*2;k.height=S.h*2;const x=k.getContext('2d');x.drawImage(im,0,0,k.width,k.height);k.toBlob(b=>save(b,fn()+'.png'),'image/png')};im.onerror=()=>alert('PNG export failed. Try Export SVG instead.');im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s)};
 // start
 try{const d=JSON.parse(localStorage.getItem('qsb'));if(d&&Array.isArray(d.items)){S=d;S.sel=null}}catch{}
-sync();commit();render();panel();
+buildLib();sync();commit();render();panel();
 </script></body></html>
