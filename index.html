@@ -108,6 +108,7 @@ ped:{n:'Pedestrian',g:'Vehicles',t:1.2,col:'#7c3aed',d:i=>`<ellipse rx="14" ry="
 stop:{n:'Stop',g:'Regulatory',t:.8,d:()=>`<polygon points="${poly(8,32,Math.PI/8)}" fill="#c1121f" stroke="#fff" stroke-width="3"/>`+tx('STOP',17)},
 yield:{n:'Give way',g:'Regulatory',t:.8,d:()=>`<polygon points="-32,-24 32,-24 0,30" fill="#fff" stroke="#c1121f" stroke-width="7" stroke-linejoin="round"/>`},
 speed:{n:'Speed limit',g:'Prohibition',t:.8,txt:'50',d:i=>`<circle r="30" fill="#fff" stroke="#c1121f" stroke-width="7"/>`+tx(i.text,i.text.length>2?18:24,'#111')},
+speedend:{n:'End of speed limit (R201-600)',g:'Prohibition',t:.8,txt:'100',d:i=>`<circle r="30" fill="#fff" stroke="#c1121f" stroke-width="7"/>`+tx(i.text,i.text.length>2?18:24,'#111')+`<path d="M-27-27L27 27M27-27L-27 27" stroke="#c1121f" stroke-width="6" stroke-linecap="round"/>`},
 noent:{n:'No entry',g:'Prohibition',t:.8,d:()=>`<circle r="31" fill="#c1121f"/>`+R(-20,-5,40,10,W)},
 warn:{n:'General warning',g:'Warning',t:.8,txt:'!',d:i=>`<polygon points="0,-32 33,25 -33,25" fill="#fff" stroke="#c1121f" stroke-width="7" stroke-linejoin="round"/>`+tx(i.text,26,'#111',6)},
 lr:{n:'Light: red',g:'Signals',t:.7,d:light(0)},ly:{n:'Light: amber',g:'Signals',t:.7,d:light(1)},lg:{n:'Light: green',g:'Signals',t:.7,d:light(2)},
