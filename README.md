@@ -22,6 +22,8 @@ A drag-and-drop tool for building the road scenes, junctions, vehicles and road 
 | Undo | Ctrl+Z |
 | Zoom | Mouse wheel |
 | Pan | Hold the right mouse button and drag (Space+drag or middle-drag also work) |
+| Editable arrows | Pick one from the Arrows group. Drag the white dots to stretch or bend it, drag a hollow dot to add a bend, double-click a dot to remove it. Colour, thickness and smooth bends are in the side panel |
+| Text labels | Extras, Text: change the text, colour and size in the side panel |
 | Match road sizes | "Match road sizes" button; new roads also copy the size of existing ones |
 
 ## Deploy to GitHub Pages

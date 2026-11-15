@@ -125,7 +125,7 @@ kerb:{n:'Yellow kerb line',g:'Markings',t:.5,d:()=>R(-4,-60,8,120,YL)},
 lplate:{n:'L plate',g:'Extras',t:1,d:()=>R(-18,-18,36,36,'#fff','stroke="#111" stroke-width="2"')+tx('L',30,'#d00')},
 hazard:{n:'Breakdown triangle',g:'Extras',t:1,d:()=>`<polygon points="0,-18 18,14 -18,14" fill="none" stroke="#d00" stroke-width="7" stroke-linejoin="round"/>`},
 lbl:{n:'Label (A, B…)',g:'Extras',t:1,txt:'A',d:i=>`<circle r="18" fill="#fff" stroke="#111" stroke-width="3"/>`+tx(i.text,20,'#111')},
-text:{n:'Text',g:'Extras',t:.9,txt:'Text',d:i=>`<text font-size="24" fill="#111" stroke="#fff" stroke-width="5" paint-order="stroke" ${F}>${esc(i.text)}</text>`},
+text:{n:'Text',g:'Extras',t:.9,txt:'Text',col:'#ffffff',d:i=>{const c=i.col||'#111',v=parseInt(c.slice(1),16),l=(v>>16)*.3+((v>>8)&255)*.59+(v&255)*.11;return `<text font-size="24" fill="${c}" stroke="${l>150?'#111':'#fff'}" stroke-width="5" paint-order="stroke" ${F}>${esc(i.text)}</text>`}},
 tree:{n:'Tree',g:'Extras',t:.8,d:()=>`<circle r="30" fill="#2f7d32"/><circle r="18" cx="-4" cy="-4" fill="#43a047"/>`},
 house:{n:'Building',g:'Extras',t:.5,d:()=>R(-60,-45,120,90,'#b8b2a7','stroke="#0005" stroke-width="2"')+R(-60,-45,120,45,'#a9473c')},
 };
@@ -138,11 +138,24 @@ T.r208={n:'Unauthorised vehicles (R208)',g:'Prohibition',t:.8,d:()=>`<circle r="
 T.r600={n:'De-restriction (R600)',g:'Regulatory',t:.8,d:()=>`<path d="M-28-28L28 28M28-28L-28 28" stroke="#c1121f" stroke-width="7"/>`};
 T.r301={n:'Bus reservation (R301)',g:'Regulatory',t:.7,d:()=>R(-26,-32,52,64,'#1d4ed8','rx="5" stroke="#fff" stroke-width="2"')+`<g transform="translate(0 -14) scale(.6)">${G.bus('#fff')}</g>`+tx('R',34,W,12)};
 T.r104={n:'Pass right (R104)',g:'Regulatory',t:.8,d:()=>`<g transform="scale(-1 1)">${T.r103.d()}</g>`};
-let S={w:800,h:600,bg:'#7cb86a',items:[],nid:0,sel:null},H=[],drag=null,V={z:1,x:0,y:0},pan=null,spaceDown=false,SEL=[],CB=[];
+function arrowSvg(i){const P=(i.pts||[{x:0,y:55},{x:0,y:-55}]).map(p=>({...p})),w=i.w||14,n=P.length,e=P[n-1],q=P[n-2],dx=e.x-q.x,dy=e.y-q.y,L=Math.hypot(dx,dy)||1,ux=dx/L,uy=dy/L,hl=w*2.4,hw=w*1.5,cut=Math.min(hl*.85,L*.9);
+ const Q=P.slice(0,n-1).concat({x:e.x-ux*cut,y:e.y-uy*cut}),m=(a,b)=>({x:(a.x+b.x)/2,y:(a.y+b.y)/2});let d=`M${Q[0].x} ${Q[0].y}`;
+ if(i.smooth&&Q.length>2){for(let k=1;k<Q.length-1;k++){const t=k==Q.length-2?Q[k+1]:m(Q[k],Q[k+1]);d+=`Q${Q[k].x} ${Q[k].y} ${t.x} ${t.y}`}}else for(let k=1;k<Q.length;k++)d+=`L${Q[k].x} ${Q[k].y}`;
+ const bx=e.x-ux*hl,by=e.y-uy*hl;
+ return `<path d="${d}" fill="none" stroke="${i.col||'#dc2626'}" stroke-width="${w}" stroke-linejoin="round"/><polygon points="${e.x},${e.y} ${bx-uy*hw},${by+ux*hw} ${bx+uy*hw},${by-ux*hw}" fill="${i.col||'#dc2626'}" stroke="${i.col||'#dc2626'}" stroke-width="1" stroke-linejoin="round"/>`}
+const AR=(n,col,w,pts,smooth)=>({n,g:'Arrows',t:.55,col,w,pts,smooth,d:arrowSvg,isArrow:1});
+T.arrowA=AR('Arrow (red)','#dc2626',16,[{x:0,y:55},{x:0,y:-55}]);
+T.arrowB=AR('Arrow (blue)','#2563eb',7,[{x:0,y:55},{x:0,y:-55}]);
+T.arrowC=AR('Bent arrow','#2563eb',7,[{x:70,y:35},{x:0,y:35},{x:0,y:-45}]);
+T.arrowD=AR('Curved arrow','#16a34a',8,[{x:-55,y:50},{x:-55,y:-20},{x:45,y:-50}],true);
+let S={w:800,h:600,bg:'#7cb86a',items:[],nid:0,sel:null},H=[],drag=null,V={z:1,x:0,y:0},pan=null,spaceDown=false,SEL=[],CB=[],hd=null;
 const svg=$('#c'),get=id=>S.items.find(i=>i.id==id),sn=v=>$('#snap').checked?Math.round(v/10)*10:v;
 const pt=e=>{const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(svg.getScreenCTM().inverse())};
 const mk=i=>`<g data-id="${i.id}" transform="translate(${i.x} ${i.y}) rotate(${i.r}) scale(${i.s})">${T[i.type].d(i)}</g>`;
 const sel=()=>SEL.map(id=>get(id)).filter(Boolean);
+const cp=o=>({...o,pts:o.pts&&o.pts.map(p=>({...p}))});
+const toW=(i,p)=>{const a=i.r*Math.PI/180,c=Math.cos(a),n=Math.sin(a);return{x:i.x+(p.x*c-p.y*n)*i.s,y:i.y+(p.x*n+p.y*c)*i.s}};
+const toL=(i,w)=>{const a=i.r*Math.PI/180,c=Math.cos(a),n=Math.sin(a),dx=w.x-i.x,dy=w.y-i.y;return{x:(dx*c+dy*n)/i.s,y:(-dx*n+dy*c)/i.s}};
 const fam=t=>/^(Roads|Markings)$/.test(T[t].g)?'road':T[t].g;
 const famScale=t=>{const l=[...S.items].reverse().find(i=>fam(i.type)==fam(t));return l?l.s:1};
 function matchRoads(){const rs=S.items.filter(i=>fam(i.type)=='road');if(!rs.length)return;const src=sel().find(i=>fam(i.type)=='road')||rs[0];rs.forEach(i=>i.s=src.s);commit();render();panel()}
@@ -151,19 +164,22 @@ function render(ui=true){
  svg.style.background=S.bg=='none'?'repeating-conic-gradient(#e3e5e9 0 25%,#fff 0 50%) 0 0/16px 16px':S.bg;
  svg.innerHTML=(S.bg=='none'?'':R(0,0,S.w,S.h,S.bg))+(ui?R(0,0,S.w,S.h,'none','stroke="#0006" stroke-width="1.5" vector-effect="non-scaling-stroke"'):'')+S.items.map(mk).join('');
  if(ui)SEL.forEach(id=>{const g=svg.querySelector(`[data-id="${id}"]`);if(!g)return;const b=g.getBBox();g.insertAdjacentHTML('beforeend',`<rect x="${b.x-4}" y="${b.y-4}" width="${b.width+8}" height="${b.height+8}" fill="none" stroke="#2563eb" stroke-width="2" stroke-dasharray="6 4" vector-effect="non-scaling-stroke" pointer-events="none"/>`)})
+ if(ui&&SEL.length==1){const i=get(SEL[0]);if(i&&i.pts){const r=7/(svg.getScreenCTM().a||1),Q=i.pts.map(p=>toW(i,p));let h='';
+  for(let q=0;q<Q.length-1;q++)h+=`<circle data-m="${q}" cx="${(Q[q].x+Q[q+1].x)/2}" cy="${(Q[q].y+Q[q+1].y)/2}" r="${r*.7}" fill="#fff8" stroke="#2563eb" stroke-width="2" vector-effect="non-scaling-stroke" style="cursor:copy"/>`;
+  Q.forEach((p,q)=>h+=`<circle data-h="${q}" cx="${p.x}" cy="${p.y}" r="${r}" fill="#fff" stroke="#2563eb" stroke-width="2.5" vector-effect="non-scaling-stroke" style="cursor:pointer"/>`);svg.insertAdjacentHTML('beforeend',h)}}
 }
 function commit(){H.push(JSON.stringify(S));if(H.length>100)H.shift();try{localStorage.setItem('qsb',JSON.stringify(S))}catch{}}
 function undo(){if(H.length<2)return;H.pop();S=JSON.parse(H[H.length-1]);sync();render();panel()}
 function sync(){V={z:1,x:0,y:0};SEL=[];$('#size').value=S.w+'x'+S.h;$('#bg').value=S.bg}
-function add(type,x,y){const t=T[type],it={id:++S.nid,type,x:sn(x),y:sn(y),r:0,s:famScale(type),col:t.col,text:t.txt};S.items.push(it);SEL=[it.id];commit();render();panel()}
+function add(type,x,y){const t=T[type],it={id:++S.nid,type,x:sn(x),y:sn(y),r:0,s:famScale(type),col:t.col,text:t.txt,w:t.w,smooth:!!t.smooth,pts:t.pts&&t.pts.map(p=>({...p}))};S.items.push(it);SEL=[it.id];commit();render();panel()}
 function del(){S.items=S.items.filter(i=>!SEL.includes(i.id));SEL=[];commit();render();panel()}
-function clone(list){return list.map(o=>{const n={...o,id:++S.nid,x:o.x+20,y:o.y+20};S.items.push(n);return n.id})}
+function clone(list){return list.map(o=>{const n={...cp(o),id:++S.nid,x:o.x+20,y:o.y+20};S.items.push(n);return n.id})}
 function dup(){const c=clone(sel());if(!c.length)return;SEL=c;commit();render();panel()}
 function z(front){if(!SEL.length)return;const rest=S.items.filter(i=>!SEL.includes(i.id)),mine=S.items.filter(i=>SEL.includes(i.id));S.items=front?rest.concat(mine):mine.concat(rest);commit();render()}
 function rot(d){const a=sel();if(!a.length)return;const cx=a.reduce((t,i)=>t+i.x,0)/a.length,cy=a.reduce((t,i)=>t+i.y,0)/a.length,c=Math.cos(d*Math.PI/180),n=Math.sin(d*Math.PI/180);
  a.forEach(i=>{if(a.length>1){const dx=i.x-cx,dy=i.y-cy;i.x=Math.round(cx+dx*c-dy*n);i.y=Math.round(cy+dx*n+dy*c)}i.r=((i.r+d+180)%360+360)%360-180});commit();render();panel()}
 // palette
-$('#pal').innerHTML=['Roads','Markings','Vehicles','Regulatory','Prohibition','Warning','Signals','Extras'].map(g=>`<h2>${g}</h2><div class="grid">`+Object.entries(T).filter(([k,t])=>t.g==g).map(([k,t])=>`<div class="pi" draggable="true" data-t="${k}" title="${t.n}: drag onto the canvas, or click"><svg viewBox="-50 -50 100 100"><g transform="scale(${t.t})">${t.d({col:t.col,text:t.txt})}</g></svg><span>${t.n}</span></div>`).join('')+'</div>').join('')+'<p class="hint">Drag items onto the canvas, or click to add at the centre. Arrows: white is informative, yellow is regulatory (change it under Colour).</p>';
+$('#pal').innerHTML=['Roads','Markings','Arrows','Vehicles','Regulatory','Prohibition','Warning','Signals','Extras'].map(g=>`<h2>${g}</h2><div class="grid">`+Object.entries(T).filter(([k,t])=>t.g==g).map(([k,t])=>`<div class="pi" draggable="true" data-t="${k}" title="${t.n}: drag onto the canvas, or click"><svg viewBox="-50 -50 100 100"><g transform="scale(${t.t})">${t.d({col:t.col,text:t.txt,pts:t.pts,w:t.w,smooth:t.smooth})}</g></svg><span>${t.n}</span></div>`).join('')+'</div>').join('')+'<p class="hint">Drag items onto the canvas, or click to add at the centre. Arrows: white is informative, yellow is regulatory (change it under Colour).</p>';
 $('#pal').addEventListener('dragstart',e=>{const p=e.target.closest('.pi');if(p)e.dataTransfer.setData('text/plain',p.dataset.t)});
 $('#pal').addEventListener('click',e=>{const p=e.target.closest('.pi');if(p)add(p.dataset.t,S.w/2,S.h/2)});
 svg.addEventListener('dragover',e=>e.preventDefault());
@@ -173,6 +189,9 @@ const MQ=document.createElement('div');MQ.style.cssText='position:fixed;border:1
 let mq=null;
 svg.addEventListener('pointerdown',e=>{
  if(e.button===1||e.button===2||spaceDown){pan={sx:e.clientX,sy:e.clientY,vx:V.x,vy:V.y};svg.style.cursor='grabbing';svg.setPointerCapture(e.pointerId);e.preventDefault();return}
+ const hh=SEL.length==1&&e.target.closest('[data-h],[data-m]');
+ if(hh){const it=get(SEL[0]);let hi;if(hh.dataset.m!==undefined){const q=+hh.dataset.m,a=it.pts[q],b=it.pts[q+1];it.pts.splice(q+1,0,{x:(a.x+b.x)/2,y:(a.y+b.y)/2});hi=q+1}else hi=+hh.dataset.h;
+  hd={it,hi,mv:hh.dataset.m!==undefined};svg.setPointerCapture(e.pointerId);render();return}
  const g=e.target.closest('[data-id]'),multi=e.ctrlKey||e.metaKey||e.shiftKey;
  if(!g){mq={x:e.clientX,y:e.clientY,base:multi?SEL.slice():[]};if(!multi)SEL=[];svg.setPointerCapture(e.pointerId);render();panel();return}
  const id=+g.dataset.id;
@@ -181,14 +200,16 @@ svg.addEventListener('pointerdown',e=>{
  drag={p:pt(e),o:sel().map(i=>[i,i.x,i.y]),mv:false};svg.setPointerCapture(e.pointerId);render();panel()});
 svg.addEventListener('pointermove',e=>{
  if(pan){const a=svg.getScreenCTM().a;V.x=pan.vx-(e.clientX-pan.sx)/a;V.y=pan.vy-(e.clientY-pan.sy)/a;setVB();return}
+ if(hd){const p=pt(e);hd.it.pts[hd.hi]=toL(hd.it,{x:sn(p.x),y:sn(p.y)});hd.mv=true;render();return}
  if(mq){const x=Math.min(mq.x,e.clientX),y=Math.min(mq.y,e.clientY),w=Math.abs(e.clientX-mq.x),h=Math.abs(e.clientY-mq.y);
   Object.assign(MQ.style,{display:'block',left:x+'px',top:y+'px',width:w+'px',height:h+'px'});
   const hit=[...svg.querySelectorAll('[data-id]')].filter(g=>{const r=g.getBoundingClientRect();return r.right>=x&&r.left<=x+w&&r.bottom>=y&&r.top<=y+h}).map(g=>+g.dataset.id);
   SEL=[...new Set(mq.base.concat(hit))];render();return}
  if(!drag)return;const p=pt(e),o0=drag.o[0],dx=sn(o0[1]+p.x-drag.p.x)-o0[1],dy=sn(o0[2]+p.y-drag.p.y)-o0[2];
  drag.o.forEach(([i,x,y])=>{i.x=x+dx;i.y=y+dy});drag.mv=true;render()});
-svg.addEventListener('pointerup',()=>{if(drag&&drag.mv)commit();if(mq){MQ.style.display='none';panel()}drag=null;if(pan)svg.style.cursor=spaceDown?'grab':'';pan=null;mq=null});
+svg.addEventListener('pointerup',()=>{if(drag&&drag.mv)commit();if(hd&&hd.mv)commit();hd=null;if(mq){MQ.style.display='none';panel()}drag=null;if(pan)svg.style.cursor=spaceDown?'grab':'';pan=null;mq=null});
 svg.addEventListener('contextmenu',e=>e.preventDefault());
+svg.addEventListener('dblclick',e=>{const h=e.target.closest('[data-h]'),it=h&&get(SEL[0]);if(it&&it.pts.length>2){it.pts.splice(+h.dataset.h,1);commit();render();panel()}});
 // zoom and pan
 function setVB(){svg.setAttribute('viewBox',`${V.x} ${V.y} ${S.w/V.z} ${S.h/V.z}`);const b=$('#zr');if(b)b.textContent=Math.round(V.z*100)+'%'}
 function zoomAt(f,cx,cy){const nz=Math.min(8,Math.max(.25,V.z*f));f=nz/V.z;V.x=cx-(cx-V.x)/f;V.y=cy-(cy-V.y)/f;V.z=nz;setVB()}
@@ -203,9 +224,9 @@ function panel(){const a=sel(),el=$('#pp'),it=a[0];
  if(!a.length){el.innerHTML='<h2>Properties</h2><p class="hint">New roads and markings automatically copy the size of the roads already placed; Match road sizes fixes the rest. Click an item to select it. Ctrl+click adds or removes items, or drag a box on empty space to select several.</p><p class="hint">Scroll to zoom; hold the right mouse button and drag to pan (Space+drag or middle-drag also work).</p><p class="hint">Keys: Delete removes, R rotates 15°, Ctrl+A selects all, Ctrl+C and Ctrl+V copy and paste, Ctrl+D duplicates, Ctrl+Z undoes, arrow keys nudge (Shift = 10).</p>';return}
  if(a.length>1)el.innerHTML=`<h2>${a.length} items selected</h2><p class="hint">Drag any one to move them all. Rotate turns the group around its centre. Ctrl+click an item to remove it from the selection.</p>`+BT;
  else{const t=T[it.type];
-  el.innerHTML=`<h2>${t.n}</h2><label>Rotation (${it.r}°)<input id="pr" type="range" min="-180" max="180" value="${it.r}"></label><label>Size (${Math.round(it.s*100)}%)<input id="ps" type="range" min="20" max="300" value="${Math.round(it.s*100)}"></label>`+(t.col?`<label>Colour<input id="pc" type="color" value="${it.col}"></label>`:'')+(t.txt!=null?`<label>Text<input id="pt" type="text" value="${esc(it.text)}"></label>`:'')+BT;
+  el.innerHTML=`<h2>${t.n}</h2>${t.isArrow?`<label>Thickness (${it.w}px)<input id="pw" type="range" min="4" max="40" value="${it.w}"></label><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="pm" ${it.smooth?'checked':''}>Smooth bends</label><p class="hint">Drag the white dots to stretch or bend the arrow. Drag a hollow dot to add a bend. Double-click a dot to remove it.</p>`:`<label>Rotation (${it.r}°)<input id="pr" type="range" min="-180" max="180" value="${it.r}"></label><label>Size (${Math.round(it.s*100)}%)<input id="ps" type="range" min="20" max="300" value="${Math.round(it.s*100)}"></label>`}`+(t.col?`<label>Colour<input id="pc" type="color" value="${it.col}"></label>`:'')+(t.txt!=null?`<label>Text<input id="pt" type="text" value="${esc(it.text)}"></label>`:'')+BT;
   const bind=(id,fn)=>{const n=$(id);if(n){n.oninput=()=>{fn(n.value);render(true)};n.onchange=()=>{commit();panel()}}};
-  bind('#pr',v=>it.r=+v);bind('#ps',v=>it.s=v/100);bind('#pc',v=>it.col=v);bind('#pt',v=>it.text=v)}
+  bind('#pr',v=>it.r=+v);bind('#ps',v=>it.s=v/100);bind('#pc',v=>it.col=v);bind('#pt',v=>it.text=v);bind('#pw',v=>it.w=+v);const pm=$('#pm');if(pm)pm.onchange=()=>{it.smooth=pm.checked;commit();render();panel()}}
  if(a.some(i=>fam(i.type)=='road'))el.querySelector('.row').insertAdjacentHTML('beforeend','<button data-a="m" title="Give every road piece and marking the same size as the selected one">Match road sizes</button>');
  el.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>({l:()=>rot(-15),r:()=>rot(15),d:dup,f:()=>z(1),b:()=>z(0),x:del,m:matchRoads})[b.dataset.a]())}
 document.addEventListener('keydown',e=>{if(/INPUT|SELECT/.test(e.target.tagName)&&e.target.type!='checkbox')return;
@@ -213,9 +234,9 @@ document.addEventListener('keydown',e=>{if(/INPUT|SELECT/.test(e.target.tagName)
  if(mod&&k=='z'){e.preventDefault();undo()}
  else if(mod&&k=='a'){e.preventDefault();SEL=S.items.map(i=>i.id);render();panel()}
  else if(k=='escape'){SEL=[];render();panel()}
- else if(mod&&k=='v'&&CB.length){e.preventDefault();SEL=clone(CB);CB=CB.map(o=>({...o,x:o.x+20,y:o.y+20}));commit();render();panel()}
+ else if(mod&&k=='v'&&CB.length){e.preventDefault();SEL=clone(CB);CB=CB.map(o=>({...cp(o),x:o.x+20,y:o.y+20}));commit();render();panel()}
  else if(!a.length)return;
- else if(mod&&k=='c'){CB=a.map(o=>({...o}))}
+ else if(mod&&k=='c'){CB=a.map(cp)}
  else if(k=='delete'||k=='backspace')del();
  else if(k=='r')rot(e.shiftKey?-15:15);
  else if(mod&&k=='d'){e.preventDefault();dup()}
