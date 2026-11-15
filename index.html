@@ -149,7 +149,7 @@ T.arrowA=AR('Arrow (red)','#dc2626',16,[{x:0,y:55},{x:0,y:-55}]);
 T.arrowB=AR('Arrow (blue)','#2563eb',7,[{x:0,y:55},{x:0,y:-55}]);
 T.arrowC=AR('Bent arrow','#2563eb',7,[{x:70,y:35},{x:0,y:35},{x:0,y:-45}]);
 T.arrowD=AR('Curved arrow','#16a34a',8,[{x:-55,y:50},{x:-55,y:-20},{x:45,y:-50}],true);
-let S={w:800,h:600,bg:'#7cb86a',items:[],nid:0,sel:null},H=[],drag=null,V={z:1,x:0,y:0},pan=null,spaceDown=false,SEL=[],CB=[],hd=null;
+let S={w:800,h:600,bg:'#7cb86a',items:[],nid:0,sel:null},H=[],drag=null,V={z:1,x:0,y:0},pan=null,spaceDown=false,SEL=[],CB=[],hd=null,STEP=15;
 const svg=$('#c'),get=id=>S.items.find(i=>i.id==id),sn=v=>$('#snap').checked?Math.round(v/10)*10:v;
 const pt=e=>{const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(svg.getScreenCTM().inverse())};
 const mk=i=>`<g data-id="${i.id}" transform="translate(${i.x} ${i.y}) rotate(${i.r}) scale(${i.s})">${T[i.type].d(i)}</g>`;
@@ -179,6 +179,10 @@ function dup(){const c=clone(sel());if(!c.length)return;SEL=c;commit();render();
 function z(front){if(!SEL.length)return;const rest=S.items.filter(i=>!SEL.includes(i.id)),mine=S.items.filter(i=>SEL.includes(i.id));S.items=front?rest.concat(mine):mine.concat(rest);commit();render()}
 function rot(d){const a=sel();if(!a.length)return;const cx=a.reduce((t,i)=>t+i.x,0)/a.length,cy=a.reduce((t,i)=>t+i.y,0)/a.length,c=Math.cos(d*Math.PI/180),n=Math.sin(d*Math.PI/180);
  a.forEach(i=>{if(a.length>1){const dx=i.x-cx,dy=i.y-cy;i.x=Math.round(cx+dx*c-dy*n);i.y=Math.round(cy+dx*n+dy*c)}i.r=((i.r+d+180)%360+360)%360-180});commit();render();panel()}
+const nrm=v=>((v+180)%360+360)%360-180,rz=v=>Math.sign(v)*Math.round(Math.abs(v)-1e-9);
+function orient(h){const a=sel();if(!a.length)return;a.forEach(i=>{
+ if(i.pts&&i.pts.length>1){const A=toW(i,i.pts[0]),B=toW(i,i.pts[i.pts.length-1]),th=Math.atan2(B.y-A.y,B.x-A.x)*180/Math.PI,tg=h?rz(th/180)*180:rz((th+90)/180)*180-90;i.r=nrm(i.r+tg-th)}
+ else i.r=nrm(h?rz((i.r-90)/180)*180+90:rz(i.r/180)*180)});commit();render();panel()}
 // palette
 $('#pal').innerHTML='<div id="lib"></div>'+['Roads','Markings','Arrows','Vehicles','Regulatory','Prohibition','Warning','Signals','Extras'].map(g=>`<h2>${g}</h2><div class="grid">`+Object.entries(T).filter(([k,t])=>t.g==g).map(([k,t])=>`<div class="pi" draggable="true" data-t="${k}" title="${t.n}: drag onto the canvas, or click"><svg viewBox="-50 -50 100 100"><g transform="scale(${t.t})">${t.d({col:t.col,text:t.txt,pts:t.pts,w:t.w,smooth:t.smooth})}</g></svg><span>${t.n}</span></div>`).join('')+'</div>').join('')+'<p class="hint">Drag items onto the canvas, or click to add at the centre. Arrows: white is informative, yellow is regulatory (change it under Colour).</p>';
 $('#pal').addEventListener('dragstart',e=>{const p=e.target.closest('.pi');if(p)e.dataTransfer.setData('text/plain',p.dataset.t)});
@@ -240,17 +244,18 @@ $('#mr').onclick=matchRoads;$('#zi').onclick=()=>zoomAt(1.25,...mid());$('#zo').
 document.addEventListener('keydown',e=>{if(e.code=='Space'&&!/INPUT|SELECT|BUTTON|TEXTAREA/.test(e.target.tagName)){e.preventDefault();spaceDown=true;svg.style.cursor='grab'}});
 document.addEventListener('keyup',e=>{if(e.code=='Space'){spaceDown=false;svg.style.cursor=''}});
 // properties
-const BT='<div class="row"><button data-a="l">⟲ 15°</button><button data-a="r">⟳ 15°</button><button data-a="d">Duplicate</button><button data-a="f">To front</button><button data-a="b">To back</button><button data-a="x">Delete</button></div>';
+const bt=()=>`<div class="row"><span class="hint" style="width:100%;margin:0">Rotate by</span>${[15,30,45,60,90,180].map(v=>`<button data-st="${v}" class="${v==STEP?'pri':''}" style="padding:3px 8px">${v}°</button>`).join('')}</div><div class="row"><button data-a="l">⟲ ${STEP}°</button><button data-a="r">⟳ ${STEP}°</button><button data-a="h" title="Make the item lie horizontally">Horizontal</button><button data-a="v" title="Make the item stand vertically">Vertical</button></div><div class="row"><button data-a="d">Duplicate</button><button data-a="f">To front</button><button data-a="b">To back</button><button data-a="x">Delete</button></div>`;
 function panel(){const a=sel(),el=$('#pp'),it=a[0];
- if(!a.length){el.innerHTML='<h2>Properties</h2><p class="hint">New roads and markings automatically copy the size of the roads already placed; Match road sizes fixes the rest. Click an item to select it. Ctrl+click adds or removes items, or drag a box on empty space to select several.</p><p class="hint">Scroll to zoom; hold the right mouse button and drag to pan (Space+drag or middle-drag also work).</p><p class="hint">Keys: Delete removes, R rotates 15°, Ctrl+A selects all, Ctrl+C and Ctrl+V copy and paste, Ctrl+D duplicates, Ctrl+Z undoes, arrow keys nudge (Shift = 10).</p>';return}
- if(a.length>1)el.innerHTML=`<h2>${a.length} items selected</h2><p class="hint">Drag any one to move them all. Rotate turns the group around its centre. Ctrl+click an item to remove it from the selection.</p>`+BT;
+ if(!a.length){el.innerHTML='<h2>Properties</h2><p class="hint">New roads and markings automatically copy the size of the roads already placed; Match road sizes fixes the rest. Click an item to select it. Ctrl+click adds or removes items, or drag a box on empty space to select several.</p><p class="hint">Scroll to zoom; hold the right mouse button and drag to pan (Space+drag or middle-drag also work).</p><p class="hint">Keys: Delete removes, R rotates by the chosen step, Ctrl+A selects all, Ctrl+C and Ctrl+V copy and paste, Ctrl+D duplicates, Ctrl+Z undoes, arrow keys nudge (Shift = 10).</p>';return}
+ if(a.length>1)el.innerHTML=`<h2>${a.length} items selected</h2><p class="hint">Drag any one to move them all. Rotate turns the group around its centre. Ctrl+click an item to remove it from the selection.</p>`+bt();
  else{const t=T[it.type];
-  el.innerHTML=`<h2>${t.n}</h2>${t.isArrow?`<label>Thickness (${it.w}px)<input id="pw" type="range" min="4" max="40" value="${it.w}"></label><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="pm" ${it.smooth?'checked':''}>Smooth bends</label><p class="hint">Drag the white dots to stretch or bend the arrow. Drag a hollow dot to add a bend. Double-click a dot to remove it.</p>`:`<label>Rotation (${it.r}°)<input id="pr" type="range" min="-180" max="180" value="${it.r}"></label><label>Size (${Math.round(it.s*100)}%)<input id="ps" type="range" min="20" max="300" value="${Math.round(it.s*100)}"></label>`}`+(t.col?`<label>Colour<input id="pc" type="color" value="${it.col}"></label>`:'')+(t.txt!=null?`<label>Text<input id="pt" type="text" value="${esc(it.text)}"></label>`:'')+BT;
+  el.innerHTML=`<h2>${t.n}</h2>${t.isArrow?`<label>Thickness (${it.w}px)<input id="pw" type="range" min="4" max="40" value="${it.w}"></label><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="pm" ${it.smooth?'checked':''}>Smooth bends</label><p class="hint">Drag the white dots to stretch or bend the arrow. Drag a hollow dot to add a bend. Double-click a dot to remove it.</p>`:`<label>Rotation (${it.r}°)<input id="pr" type="range" min="-180" max="180" value="${it.r}"></label><label>Size (${Math.round(it.s*100)}%)<input id="ps" type="range" min="20" max="300" value="${Math.round(it.s*100)}"></label>`}`+(t.col?`<label>Colour<input id="pc" type="color" value="${it.col}"></label>`:'')+(t.txt!=null?`<label>Text<input id="pt" type="text" value="${esc(it.text)}"></label>`:'')+bt();
   const bind=(id,fn)=>{const n=$(id);if(n){n.oninput=()=>{fn(n.value);render(true)};n.onchange=()=>{commit();panel()}}};
   bind('#pr',v=>it.r=+v);bind('#ps',v=>it.s=v/100);bind('#pc',v=>it.col=v);bind('#pt',v=>it.text=v);bind('#pw',v=>it.w=+v);const pm=$('#pm');if(pm)pm.onchange=()=>{it.smooth=pm.checked;commit();render();panel()}}
- if(a.some(i=>fam(i.type)=='road'))el.querySelector('.row').insertAdjacentHTML('beforeend','<button data-a="m" title="Give every road piece and marking the same size as the selected one">Match road sizes</button>');
- el.querySelector('.row').insertAdjacentHTML('beforeend','<button data-a="lib" title="Keep this selection in My library for later use">Save to library</button>');
- el.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>({l:()=>rot(-15),r:()=>rot(15),d:dup,f:()=>z(1),b:()=>z(0),x:del,m:matchRoads,lib:saveToLib})[b.dataset.a]())}
+ if(a.some(i=>fam(i.type)=='road'))[...el.querySelectorAll('.row')].pop().insertAdjacentHTML('beforeend','<button data-a="m" title="Give every road piece and marking the same size as the selected one">Match road sizes</button>');
+ [...el.querySelectorAll('.row')].pop().insertAdjacentHTML('beforeend','<button data-a="lib" title="Keep this selection in My library for later use">Save to library</button>');
+ el.querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>{STEP=+b.dataset.st;panel()});
+ el.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>({l:()=>rot(-STEP),r:()=>rot(STEP),h:()=>orient(1),v:()=>orient(0),d:dup,f:()=>z(1),b:()=>z(0),x:del,m:matchRoads,lib:saveToLib})[b.dataset.a]())}
 document.addEventListener('keydown',e=>{if(/INPUT|SELECT/.test(e.target.tagName)&&e.target.type!='checkbox')return;
  const k=e.key.toLowerCase(),a=sel(),mod=e.ctrlKey||e.metaKey;
  if(mod&&k=='z'){e.preventDefault();undo()}
@@ -260,7 +265,7 @@ document.addEventListener('keydown',e=>{if(/INPUT|SELECT/.test(e.target.tagName)
  else if(!a.length)return;
  else if(mod&&k=='c'){CB=a.map(cp)}
  else if(k=='delete'||k=='backspace')del();
- else if(k=='r')rot(e.shiftKey?-15:15);
+ else if(k=='r')rot(e.shiftKey?-STEP:STEP);
  else if(mod&&k=='d'){e.preventDefault();dup()}
  else if(k.startsWith('arrow')){e.preventDefault();const n=e.shiftKey?10:1,dx=k=='arrowright'?n:k=='arrowleft'?-n:0,dy=k=='arrowdown'?n:k=='arrowup'?-n:0;a.forEach(i=>{i.x+=dx;i.y+=dy});render();clearTimeout(window.nt);window.nt=setTimeout(commit,400)}});
 // toolbar
