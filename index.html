@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quiz Scene Builder</title>
+<style>
+:root{--ws:#c3c8d1;--bg:#eef0f3;--p:#fff;--t:#1b1f27;--m:#6b7280;--b:#d5d9e0;--a:#0f766e;--ah:#115e59}
+@media(prefers-color-scheme:dark){:root{--ws:#2a2f38;--bg:#14171c;--p:#1e2229;--t:#e7e9ee;--m:#97a0af;--b:#343a46;--a:#2dd4bf;--ah:#5eead4}}
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--t);font:14px/1.4 system-ui,Segoe UI,Arial,sans-serif;display:flex;flex-direction:column}
+header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 12px;background:var(--p);border-bottom:1px solid var(--b)}
+header h1{font-size:15px;margin:0 8px 0 0}
+button,select,input[type=text]{font:inherit;color:var(--t);background:var(--p);border:1px solid var(--b);border-radius:6px;padding:5px 10px}
+button{cursor:pointer}button:hover{border-color:var(--a)}button.pri{background:var(--a);color:#fff;border-color:var(--a)}button.pri:hover{background:var(--ah)}
+:focus-visible{outline:2px solid var(--a);outline-offset:1px}
+main{flex:1;display:grid;grid-template-columns:230px 1fr 210px;min-height:0}
+aside{background:var(--p);overflow:auto;padding:10px}
+#pal{border-right:1px solid var(--b)}#pp{border-left:1px solid var(--b)}
+h2{font-size:13px;margin:12px 0 6px}h2:first-child{margin-top:0}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.pi{border:1px solid var(--b);border-radius:6px;padding:3px;text-align:center;cursor:grab;font-size:11px;color:var(--m);background:#f3f4f6;user-select:none}
+.pi:hover{border-color:var(--a)}.pi svg{width:100%;height:56px;display:block}.pi span{display:block;color:#374151;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#stage{padding:12px;overflow:auto;display:flex;align-items:flex-start;justify-content:center}
+#c{width:100%;max-width:1100px;height:auto;max-height:calc(100vh - 100px);background:var(--ws);box-shadow:0 1px 6px #0003;touch-action:none}
+#c [data-id]{cursor:move}
+label{display:block;margin:8px 0;color:var(--m);font-size:12px}label input[type=range],label input[type=text]{width:100%}input[type=color]{width:100%;height:30px;padding:0;border:1px solid var(--b)}
+.row{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.hint{color:var(--m);font-size:12px}
+.tg{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--m)}
+@media(max-width:820px){main{grid-template-columns:1fr;grid-auto-rows:auto;overflow:auto}#pal,#pp{border:0;max-height:220px}}
+</style></head><body>
+<header>
+<h1>Quiz Scene Builder</h1>
+<button id="undo">Undo</button><button id="clear">Clear</button>
+<select id="size" aria-label="Canvas size"><option value="800x600">800 × 600</option><option value="1024x768">1024 × 768</option><option value="600x600">600 × 600</option><option value="1280x720">1280 × 720</option><option value="400x400">400 × 400</option></select>
+<select id="bg" aria-label="Background"><option value="#7cb86a">Grass</option><option value="#e6d9b8">Sand</option><option value="#ffffff">White</option><option value="#9aa3ad">Grey</option><option value="none">Transparent</option></select>
+<label class="tg"><input type="checkbox" id="snap" checked>Snap to grid</label>
+<button id="zo" title="Zoom out" aria-label="Zoom out">−</button><button id="zr" title="Reset zoom" style="min-width:56px">100%</button><button id="zi" title="Zoom in" aria-label="Zoom in">+</button><button id="mr" title="Give every road piece and marking the size of the selected one (or the first road)">Match road sizes</button>
+<span style="flex:1"></span>
+<input type="text" id="fn" value="scene-1" size="12" aria-label="File name">
+<button id="sv">Save project</button><button id="op">Open project</button><input type="file" id="fi" accept=".json" hidden>
+<button id="xs">Export SVG</button><button id="xp" class="pri">Export PNG</button>
+</header>
+<main>
+<aside id="pal" aria-label="Library"></aside>
+<section id="stage"><svg id="c" xmlns="http://www.w3.org/2000/svg"></svg></section>
+<aside id="pp" aria-label="Properties"></aside>
+</main>
+<script>
+const $=s=>document.querySelector(s),NS='http://www.w3.org/2000/svg';
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const poly=(n,r,a=0)=>Array.from({length:n},(_,i)=>{const t=a+i*2*Math.PI/n;return(r*Math.sin(t)).toFixed(1)+','+(-r*Math.cos(t)).toFixed(1)}).join(' ');
+const RD='#4a4d55',Y='#ffffff',W='#fff',F='font-family="Arial,Helvetica,sans-serif" font-weight="700" text-anchor="middle" dominant-baseline="central"';
+const R=(x,y,w,h,f,x2='')=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${f}" ${x2}/>`;
+const L=(a,b,c,d,s=Y,w=4)=>`<line x1="${a}" y1="${b}" x2="${c}" y2="${d}" stroke="${s}" stroke-width="${w}" stroke-dasharray="22 16"/>`;
+const tx=(s,z,f=W,y=0)=>`<text y="${y}" font-size="${z}" fill="${f}" ${F}>${esc(s)}</text>`;
+const car=i=>`<rect x="-20" y="-40" width="40" height="80" rx="10" fill="${i.col}" stroke="#0006" stroke-width="1.5"/><rect x="-15" y="-23" width="30" height="13" rx="3" fill="#bfe3ff"/><rect x="-15" y="14" width="30" height="11" rx="3" fill="#bfe3ff"/><rect x="-14" y="-9" width="28" height="23" rx="4" fill="#000" fill-opacity=".14"/><rect x="-16" y="-39" width="9" height="4" fill="#fff6a8"/><rect x="7" y="-39" width="9" height="4" fill="#fff6a8"/><rect x="-16" y="35" width="9" height="4" fill="#d33"/><rect x="7" y="35" width="9" height="4" fill="#d33"/>`;
+const light=k=>i=>R(-14,-36,28,72,'#222','rx="6"')+['#ef4444','#facc15','#22c55e'].map((c,n)=>`<circle cy="${-20+n*20}" r="8" fill="${n==k?c:'#444'}"/>`).join('');
+const arrow=m=>i=>`<g transform="scale(${m} 1)"><path d="M-6 30V-2Q-6-12 4-12H10V-22L28-8 10 6V-4H4V30Z" fill="${i.col}"/></g>`;
+const YL='#f5c518';
+const tri=x=>`<polygon points="0,-32 33,25 -33,25" fill="#fff" stroke="#c1121f" stroke-width="7" stroke-linejoin="round"/>`+x;
+const stopn=n=>()=>`<g transform="translate(0 -8) scale(.8)"><polygon points="${poly(8,32,Math.PI/8)}" fill="#c1121f" stroke="#fff" stroke-width="3"/>${tx('STOP',17)}</g>`+R(-10,24,20,18,'#c1121f','rx="2" stroke="#fff" stroke-width="2"')+tx(n,13,W,33);
+const S5=(c,w=5)=>`stroke="${c}" stroke-width="${w}" fill="none" stroke-linecap="round" stroke-linejoin="round"`;
+const M=f=>c=>`<g transform="scale(-1 1)">${f(c)}</g>`,rt=(f,a)=>c=>`<g transform="rotate(${a})">${f(c)}</g>`,cr=(v,h)=>c=>`<path d="M0-16V16" ${S5(c,v)}/><path d="M-16 0H16" ${S5(c,h)}/>`;
+const G={};
+G.right=c=>`<path d="M-16 0H14M14 0L3-10M14 0L3 10" ${S5(c,6)}/>`;G.left=M(G.right);G.up=rt(G.right,-90);
+G.turnR=c=>`<path d="M-6 18V0Q-6-10 4-10H13M13-10L5-17M13-10L5-3" ${S5(c)}/>`;G.turnL=M(G.turnR);
+G.gentleR=c=>`<path d="M-8 18Q-8-2 10-12M10-12L1-14M10-12L6-3" ${S5(c)}/>`;G.gentleL=M(G.gentleR);
+G.hairR=c=>`<path d="M-8 18V-4Q-8-14 2-14Q12-14 12-4V4M12 4L6-2M12 4L18-2" ${S5(c)}/>`;G.hairL=M(G.hairR);
+G.ped=c=>`<circle cy="-14" r="4.5" fill="${c}"/><path d="M0-8V6M0-3L-8 3M0-3L8 3M0 6L-6 17M0 6L6 17" ${S5(c,4)}/>`;
+G.bike=c=>`<circle cx="-11" cy="7" r="7" ${S5(c,3)}/><circle cx="11" cy="7" r="7" ${S5(c,3)}/><path d="M-11 7L-3-6H7L11 7M-3-6L1 7M-4-9H1M7-6L5-10H9" ${S5(c,3)}/>`;
+G.car=c=>`<rect x="-18" y="-2" width="36" height="14" rx="4" fill="${c}"/><path d="M-11-2L-7-12H7L11-2Z" fill="${c}"/>`;
+G.truck=c=>`<rect x="-18" y="-10" width="22" height="18" fill="${c}"/><path d="M6-4H14L18 2V8H6Z" fill="${c}"/><circle cx="-10" cy="10" r="3.5" fill="${c}"/><circle cx="10" cy="10" r="3.5" fill="${c}"/>`;
+G.bus=c=>`<rect x="-19" y="-10" width="38" height="20" rx="4" fill="${c}"/><circle cx="-10" cy="11" r="3.5" fill="${c}"/><circle cx="10" cy="11" r="3.5" fill="${c}"/>`;
+G.P=c=>tx('P',34,c);G.S=c=>tx('S',34,c);G.T=c=>tx('T',36,c);
+G.round=c=>`<path d="M-10-8A13 13 0 0 1 12-6M10 8A13 13 0 0 1-12 6" ${S5(c,4)}/><path d="M12-14V-6H4M-12 14V6H-4" ${S5(c,3.5)}/>`;
+G.cattle=c=>`<rect x="-14" y="-8" width="24" height="12" rx="3" fill="${c}"/><rect x="8" y="-13" width="9" height="9" rx="2" fill="${c}"/><path d="M-10 4V16M-4 4V16M4 4V16M9 4V16" ${S5(c,3)}/>`;
+G.tunnel=c=>`<path d="M-16 14V0Q-16-14 0-14T16 0V14Z" fill="${c}"/><path d="M-8 14V3Q-8-5 0-5T8 3V14Z" fill="#fff"/>`;
+G.lights=()=>`<rect x="-7" y="-17" width="14" height="34" rx="4" fill="#111"/><circle cy="-9" r="3.5" fill="#ef4444"/><circle r="3.5" fill="#facc15"/><circle cy="9" r="3.5" fill="#22c55e"/>`;
+G.zebra=c=>`<g transform="translate(0 -3) scale(.8)">${G.ped(c)}</g><path d="M-17 16H17" ${S5(c,4)} stroke-dasharray="4 3"/>`;
+G.twoway=c=>`<path d="M-6 16V-14M-6-14L-12-6M-6-14L0-6M6-16V14M6 14L0 6M6 14L12 6" ${S5(c,3.5)}/>`;
+G.descent=c=>`<path d="M-18-8L18 12V16H-18Z" fill="${c}"/>`;G.ascent=M(G.descent);
+G.narrows=c=>`<path d="M-14-16Q-6-4-6 0Q-6 4-14 16M14-16Q6-4 6 0Q6 4 14 16" ${S5(c,3.5)}/>`;
+G.humps=c=>`<path d="M-18 12Q0-10 18 12Z" fill="${c}"/>`;
+G.slip=c=>`<g transform="translate(0 -4) scale(.8)">${G.car(c)}</g><path d="M-14 14Q-8 9-2 14T10 14" ${S5(c,3)}/>`;
+G.rocks=c=>`<path d="M-18 16L18-4V16Z" fill="${c}"/><circle cx="-8" cy="-6" r="3.5" fill="${c}"/><circle cx="3" cy="-12" r="3.5" fill="${c}"/><circle cx="-14" cy="-14" r="3.5" fill="${c}"/>`;
+G.pcross=cr(8,3);G.scross=cr(3,8);
+G.tj=c=>`<path d="M-16-8H16M0-8V16" ${S5(c,6)}/>`;G.sideL=c=>`<path d="M4-16V16M4 0H-14" ${S5(c,6)}/>`;G.sideR=M(G.sideL);
+G.y=c=>`<path d="M0 16V0M0 0L-12-14M0 0L12-14" ${S5(c,6)}/>`;
+const mkBlue=k=>()=>`<circle r="31" fill="#1d4ed8"/><circle r="27" fill="none" stroke="#fff" stroke-width="2"/><g transform="scale(.85)">${G[k]('#fff')}</g>`;
+const mkNo=k=>()=>`<circle r="30" fill="#fff" stroke="#c1121f" stroke-width="6"/><g transform="scale(.8)">${G[k]('#111')}</g><line x1="-21" y1="21" x2="21" y2="-21" stroke="#c1121f" stroke-width="5"/>`;
+const mkW=k=>()=>tri(`<g transform="translate(0 7) scale(.62)">${G[k]('#111')}</g>`);
+const mkLim=i=>`<circle r="30" fill="#fff" stroke="#c1121f" stroke-width="6"/>`+tx(i.text,i.text.length>3?15:20,'#111');
+const T={
+straight:{n:'Straight road',g:'Roads',t:.2,d:()=>R(-70,-200,140,400,RD)+L(0,-200,0,200)+L(-62,-200,-62,200,W,3).replace(/stroke-dasharray="[^"]*"/,'')+L(62,-200,62,200,W,3).replace(/stroke-dasharray="[^"]*"/,'')},
+cross:{n:'4-way junction',g:'Roads',t:.2,d:()=>R(-70,-200,140,400,RD)+R(-200,-70,400,140,RD)+L(0,-200,0,-70)+L(0,70,0,200)+L(-200,0,-70,0)+L(70,0,200,0)},
+tj:{n:'T-junction',g:'Roads',t:.2,d:()=>R(-70,-200,140,400,RD)+R(70,-70,130,140,RD)+L(0,-200,0,-70)+L(0,70,0,200)+L(70,0,200,0)},
+curve:{n:'Curve',g:'Roads',t:.2,d:()=>`<g transform="translate(-115 -115)">${R(-70,140,140,160,RD)+R(140,-70,160,140,RD)}<path d="M-70 140A210 210 0 0 1 140-70L140 70A70 70 0 0 0 70 140Z" fill="${RD}"/>${L(0,140,0,300)+L(140,0,300,0)}<path d="M0 140A140 140 0 0 1 140 0" fill="none" stroke="${Y}" stroke-width="4" stroke-dasharray="22 16"/></g>`},
+round:{n:'Roundabout',g:'Roads',t:.2,d:()=>R(-70,-200,140,400,RD)+R(-200,-70,400,140,RD)+`<circle r="135" fill="${RD}"/><circle r="55" fill="#5a9e4b" stroke="#fff" stroke-width="3"/>`+L(0,-200,0,-135)+L(0,135,0,200)+L(-200,0,-135,0)+L(135,0,200,0)},
+xwalk:{n:'Crosswalk',g:'Markings',t:.5,d:()=>Array.from({length:7},(_,k)=>R(-63+k*21,-20,11,40,W)).join('')},
+stopln:{n:'Stop line',g:'Markings',t:.5,d:()=>R(-65,-5,130,10,W)},
+arF:{n:'Arrow ahead',g:'Markings',t:.9,col:'#ffffff',d:i=>`<polygon points="-8,30 -8,-5 -18,-5 0,-30 18,-5 8,-5 8,30" fill="${i.col}"/>`},
+arR:{n:'Arrow right',g:'Markings',t:.9,col:'#ffffff',d:arrow(1)},arL:{n:'Arrow left',g:'Markings',t:.9,col:'#ffffff',d:arrow(-1)},
+car:{n:'Car',g:'Vehicles',t:.7,col:'#2563eb',d:car},
+car2:{n:'Car (red)',g:'Vehicles',t:.7,col:'#dc2626',d:car},
+car3:{n:'Car (yellow)',g:'Vehicles',t:.7,col:'#eab308',d:car},
+truck:{n:'Truck',g:'Vehicles',t:.5,col:'#6b7280',d:i=>R(-24,-60,48,40,i.col,'rx="6" stroke="#0006"')+R(-26,-16,52,86,'#e5e7eb','rx="4" stroke="#0006"')+R(-18,-54,36,10,'#bfe3ff','rx="3"')},
+bike:{n:'Bike',g:'Vehicles',t:.9,col:'#16a34a',d:i=>R(-3,-28,6,56,'#222','rx="3"')+R(-12,-18,24,3,'#222')+`<ellipse cy="-4" rx="9" ry="7" fill="${i.col}"/><circle cy="-6" r="5" fill="#f2b36b"/>`},
+ped:{n:'Pedestrian',g:'Vehicles',t:1.2,col:'#7c3aed',d:i=>`<ellipse rx="14" ry="7" fill="${i.col}"/><circle r="8" fill="#f2b36b" stroke="#0005"/>`},
+stop:{n:'Stop',g:'Regulatory',t:.8,d:()=>`<polygon points="${poly(8,32,Math.PI/8)}" fill="#c1121f" stroke="#fff" stroke-width="3"/>`+tx('STOP',17)},
+yield:{n:'Give way',g:'Regulatory',t:.8,d:()=>`<polygon points="-32,-24 32,-24 0,30" fill="#fff" stroke="#c1121f" stroke-width="7" stroke-linejoin="round"/>`},
+speed:{n:'Speed limit',g:'Prohibition',t:.8,txt:'50',d:i=>`<circle r="30" fill="#fff" stroke="#c1121f" stroke-width="7"/>`+tx(i.text,i.text.length>2?18:24,'#111')},
+noent:{n:'No entry',g:'Prohibition',t:.8,d:()=>`<circle r="31" fill="#c1121f"/>`+R(-20,-5,40,10,W)},
+warn:{n:'General warning',g:'Warning',t:.8,txt:'!',d:i=>`<polygon points="0,-32 33,25 -33,25" fill="#fff" stroke="#c1121f" stroke-width="7" stroke-linejoin="round"/>`+tx(i.text,26,'#111',6)},
+lr:{n:'Light: red',g:'Signals',t:.7,d:light(0)},ly:{n:'Light: amber',g:'Signals',t:.7,d:light(1)},lg:{n:'Light: green',g:'Signals',t:.7,d:light(2)},
+r103:{n:'Keep left (R103)',g:'Regulatory',t:.8,d:()=>`<circle r="31" fill="#1d4ed8"/><circle r="27" fill="none" stroke="#fff" stroke-width="2"/><g transform="rotate(-135)"><polygon points="-6,16 -6,-4 -14,-4 0,-20 14,-4 6,-4 6,16" fill="#fff"/></g>`},
+r101:{n:'Minimum speed (R101)',g:'Regulatory',t:.8,txt:'50',d:i=>`<circle r="31" fill="#1d4ed8"/><circle r="27" fill="none" stroke="#fff" stroke-width="2"/>`+tx(i.text,i.text.length>2?18:24)},
+r111:{n:'Pedal cycles only (R111)',g:'Regulatory',t:.8,d:()=>`<circle r="31" fill="#1d4ed8"/><circle cx="-10" cy="8" r="7" fill="none" stroke="#fff" stroke-width="2.5"/><circle cx="10" cy="8" r="7" fill="none" stroke="#fff" stroke-width="2.5"/><path d="M-10 8L-3-5H6L10 8M-3-5L1 8" stroke="#fff" stroke-width="2.5" fill="none"/>`},
+r214:{n:'No overtaking (R214)',g:'Prohibition',t:.8,d:()=>`<circle r="30" fill="#fff" stroke="#c1121f" stroke-width="6"/><rect x="-20" y="-6" width="16" height="12" rx="3" fill="#111"/><rect x="4" y="-6" width="16" height="12" rx="3" fill="#c1121f"/><line x1="-20" y1="20" x2="20" y2="-20" stroke="#c1121f" stroke-width="5"/>`},
+stop3:{n:'3-way stop (R1.3)',g:'Regulatory',t:.7,d:stopn('3')},stop4:{n:'4-way stop (R1.4)',g:'Regulatory',t:.7,d:stopn('4')},
+w308:{n:'Children (W308)',g:'Warning',t:.8,d:()=>tri(`<circle cx="-7" cy="-6" r="3.5" fill="#111"/><path d="M-7-2V9M-7 3L-13 8M-7 3L-2 8M-7 9L-11 17M-7 9L-3 17" stroke="#111" stroke-width="2.5" fill="none"/><circle cx="8" cy="0" r="3" fill="#111"/><path d="M8 3V12M8 12L5 19M8 12L12 19M8 6L2 10" stroke="#111" stroke-width="2.5" fill="none"/>`)},
+w101:{n:'Crossroad (W101)',g:'Warning',t:.8,d:()=>tri(`<g transform="translate(0 6)">${R(-3,-14,6,28,'#111')+R(-14,-3,28,6,'#111')}</g>`)},
+w318:{n:'Railway crossing (W318)',g:'Warning',t:.8,d:()=>tri(`<g transform="translate(0 6)">${R(-12,-12,24,18,'#111','rx="3"')+R(-8,-8,16,6,W)}<circle cx="-6" cy="10" r="3" fill="#111"/><circle cx="6" cy="10" r="3" fill="#111"/></g>`)},
+w302:{n:'Stop ahead (W302)',g:'Warning',t:.8,d:()=>tri(`<polygon transform="translate(0 6)" points="${poly(8,13,Math.PI/8)}" fill="#c1121f"/>`)},
+w303:{n:'Yield ahead (W303)',g:'Warning',t:.8,d:()=>tri(`<polygon points="-12,-4 12,-4 0,17" fill="#fff" stroke="#c1121f" stroke-width="3.5" stroke-linejoin="round"/>`)},
+boxj:{n:'Box junction',g:'Markings',t:.5,d:()=>R(-70,-70,140,140,'none',`stroke="${YL}" stroke-width="3"`)+[-35,0,35].map(v=>`<line x1="${v}" y1="-70" x2="${v}" y2="70" stroke="${YL}" stroke-width="3"/><line x1="-70" y1="${v}" x2="70" y2="${v}" stroke="${YL}" stroke-width="3"/>`).join('')},
+kerb:{n:'Yellow kerb line',g:'Markings',t:.5,d:()=>R(-4,-60,8,120,YL)},
+lplate:{n:'L plate',g:'Extras',t:1,d:()=>R(-18,-18,36,36,'#fff','stroke="#111" stroke-width="2"')+tx('L',30,'#d00')},
+hazard:{n:'Breakdown triangle',g:'Extras',t:1,d:()=>`<polygon points="0,-18 18,14 -18,14" fill="none" stroke="#d00" stroke-width="7" stroke-linejoin="round"/>`},
+lbl:{n:'Label (A, B…)',g:'Extras',t:1,txt:'A',d:i=>`<circle r="18" fill="#fff" stroke="#111" stroke-width="3"/>`+tx(i.text,20,'#111')},
+text:{n:'Text',g:'Extras',t:.9,txt:'Text',d:i=>`<text font-size="24" fill="#111" stroke="#fff" stroke-width="5" paint-order="stroke" ${F}>${esc(i.text)}</text>`},
+tree:{n:'Tree',g:'Extras',t:.8,d:()=>`<circle r="30" fill="#2f7d32"/><circle r="18" cx="-4" cy="-4" fill="#43a047"/>`},
+house:{n:'Building',g:'Extras',t:.5,d:()=>R(-60,-45,120,90,'#b8b2a7','stroke="#0005" stroke-width="2"')+R(-60,-45,120,45,'#a9473c')},
+};
+const addT=(g,list,f)=>list.forEach(([id,n,k])=>T[id]={n,g,t:.8,d:f(k)});
+addT('Regulatory',[['r105','Proceed left (R105)','left'],['r106','Proceed right (R106)','right'],['r107','Proceed straight (R107)','up'],['r108','Turn left ahead (R108)','turnL'],['r109','Turn right ahead (R109)','turnR'],['r110','Pedestrians only (R110)','ped'],['r121','Buses only (R121)','bus'],['r132','Toll plaza (R132)','T'],['r137','Roundabout (R137)','round']],mkBlue);
+addT('Prohibition',[['p211','No left turn (R211)','turnL'],['p212','No right turn (R212)','turnR'],['p213','No U-turn (R213)','hairR'],['p216','No parking (R216)','P'],['p217','No stopping (R217)','S'],['p218','No pedestrians (R218)','ped'],['p219','No cycles (R219)','bike'],['p223','No cars (R223)','car'],['p227','No buses (R227)','bus'],['p229','No goods vehicles (R229)','truck']],mkNo);
+addT('Warning',[['w201','Traffic circle (W201)','round'],['w202','Gentle curve right (W202)','gentleR'],['w203','Gentle curve left (W203)','gentleL'],['w204','Sharp curve right (W204)','turnR'],['w205','Sharp curve left (W205)','turnL'],['w206','Hairpin right (W206)','hairR'],['w207','Hairpin left (W207)','hairL'],['w212','Two-way traffic (W212)','twoway'],['w301','Traffic signals ahead (W301)','lights'],['w306','Pedestrian crossing (W306)','zebra'],['w307','Pedestrians (W307)','ped'],['w309','Cyclists (W309)','bike'],['w310','Cattle (W310)','cattle'],['w102','Priority crossroad (W102)','pcross'],['w103','Secondary crossroad (W103)','scross'],['w104','T-junction (W104)','tj'],['w107','Side road left (W107)','sideL'],['w108','Side road right (W108)','sideR'],['w115','Y-junction (W115)','y'],['w319','Tunnel (W319)','tunnel'],['w322','Steep descent (W322)','descent'],['w323','Steep ascent (W323)','ascent'],['w328','Road narrows (W328)','narrows'],['w332','Speed humps (W332)','humps'],['w333','Slippery road (W333)','slip'],['w334','Falling rocks (W334)','rocks']],mkW);
+[['r202','Mass limit (R202)','12t'],['r204','Height limit (R204)','4.42'],['r205','Length limit (R205)','15 m'],['r239','Width limit (R239)','2.1 m']].forEach(([id,n,t])=>T[id]={n,g:'Prohibition',t:.8,txt:t,d:mkLim});
+T.r208={n:'Unauthorised vehicles (R208)',g:'Prohibition',t:.8,d:()=>`<circle r="30" fill="#fff" stroke="#c1121f" stroke-width="6"/>`+R(-16,-9,32,6,'#c1121f')+R(-16,3,32,6,'#c1121f')};
+T.r600={n:'De-restriction (R600)',g:'Regulatory',t:.8,d:()=>`<path d="M-28-28L28 28M28-28L-28 28" stroke="#c1121f" stroke-width="7"/>`};
+T.r301={n:'Bus reservation (R301)',g:'Regulatory',t:.7,d:()=>R(-26,-32,52,64,'#1d4ed8','rx="5" stroke="#fff" stroke-width="2"')+`<g transform="translate(0 -14) scale(.6)">${G.bus('#fff')}</g>`+tx('R',34,W,12)};
+T.r104={n:'Pass right (R104)',g:'Regulatory',t:.8,d:()=>`<g transform="scale(-1 1)">${T.r103.d()}</g>`};
+let S={w:800,h:600,bg:'#7cb86a',items:[],nid:0,sel:null},H=[],drag=null,V={z:1,x:0,y:0},pan=null,spaceDown=false,SEL=[],CB=[];
+const svg=$('#c'),get=id=>S.items.find(i=>i.id==id),sn=v=>$('#snap').checked?Math.round(v/10)*10:v;
+const pt=e=>{const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(svg.getScreenCTM().inverse())};
+const mk=i=>`<g data-id="${i.id}" transform="translate(${i.x} ${i.y}) rotate(${i.r}) scale(${i.s})">${T[i.type].d(i)}</g>`;
+const sel=()=>SEL.map(id=>get(id)).filter(Boolean);
+const fam=t=>/^(Roads|Markings)$/.test(T[t].g)?'road':T[t].g;
+const famScale=t=>{const l=[...S.items].reverse().find(i=>fam(i.type)==fam(t));return l?l.s:1};
+function matchRoads(){const rs=S.items.filter(i=>fam(i.type)=='road');if(!rs.length)return;const src=sel().find(i=>fam(i.type)=='road')||rs[0];rs.forEach(i=>i.s=src.s);commit();render();panel()}
+function render(ui=true){
+ setVB();
+ svg.style.background=S.bg=='none'?'repeating-conic-gradient(#e3e5e9 0 25%,#fff 0 50%) 0 0/16px 16px':S.bg;
+ svg.innerHTML=(S.bg=='none'?'':R(0,0,S.w,S.h,S.bg))+(ui?R(0,0,S.w,S.h,'none','stroke="#0006" stroke-width="1.5" vector-effect="non-scaling-stroke"'):'')+S.items.map(mk).join('');
+ if(ui)SEL.forEach(id=>{const g=svg.querySelector(`[data-id="${id}"]`);if(!g)return;const b=g.getBBox();g.insertAdjacentHTML('beforeend',`<rect x="${b.x-4}" y="${b.y-4}" width="${b.width+8}" height="${b.height+8}" fill="none" stroke="#2563eb" stroke-width="2" stroke-dasharray="6 4" vector-effect="non-scaling-stroke" pointer-events="none"/>`)})
+}
+function commit(){H.push(JSON.stringify(S));if(H.length>100)H.shift();try{localStorage.setItem('qsb',JSON.stringify(S))}catch{}}
+function undo(){if(H.length<2)return;H.pop();S=JSON.parse(H[H.length-1]);sync();render();panel()}
+function sync(){V={z:1,x:0,y:0};SEL=[];$('#size').value=S.w+'x'+S.h;$('#bg').value=S.bg}
+function add(type,x,y){const t=T[type],it={id:++S.nid,type,x:sn(x),y:sn(y),r:0,s:famScale(type),col:t.col,text:t.txt};S.items.push(it);SEL=[it.id];commit();render();panel()}
+function del(){S.items=S.items.filter(i=>!SEL.includes(i.id));SEL=[];commit();render();panel()}
+function clone(list){return list.map(o=>{const n={...o,id:++S.nid,x:o.x+20,y:o.y+20};S.items.push(n);return n.id})}
+function dup(){const c=clone(sel());if(!c.length)return;SEL=c;commit();render();panel()}
+function z(front){if(!SEL.length)return;const rest=S.items.filter(i=>!SEL.includes(i.id)),mine=S.items.filter(i=>SEL.includes(i.id));S.items=front?rest.concat(mine):mine.concat(rest);commit();render()}
+function rot(d){const a=sel();if(!a.length)return;const cx=a.reduce((t,i)=>t+i.x,0)/a.length,cy=a.reduce((t,i)=>t+i.y,0)/a.length,c=Math.cos(d*Math.PI/180),n=Math.sin(d*Math.PI/180);
+ a.forEach(i=>{if(a.length>1){const dx=i.x-cx,dy=i.y-cy;i.x=Math.round(cx+dx*c-dy*n);i.y=Math.round(cy+dx*n+dy*c)}i.r=((i.r+d+180)%360+360)%360-180});commit();render();panel()}
+// palette
+$('#pal').innerHTML=['Roads','Markings','Vehicles','Regulatory','Prohibition','Warning','Signals','Extras'].map(g=>`<h2>${g}</h2><div class="grid">`+Object.entries(T).filter(([k,t])=>t.g==g).map(([k,t])=>`<div class="pi" draggable="true" data-t="${k}" title="${t.n}: drag onto the canvas, or click"><svg viewBox="-50 -50 100 100"><g transform="scale(${t.t})">${t.d({col:t.col,text:t.txt})}</g></svg><span>${t.n}</span></div>`).join('')+'</div>').join('')+'<p class="hint">Drag items onto the canvas, or click to add at the centre. Arrows: white is informative, yellow is regulatory (change it under Colour).</p>';
+$('#pal').addEventListener('dragstart',e=>{const p=e.target.closest('.pi');if(p)e.dataTransfer.setData('text/plain',p.dataset.t)});
+$('#pal').addEventListener('click',e=>{const p=e.target.closest('.pi');if(p)add(p.dataset.t,S.w/2,S.h/2)});
+svg.addEventListener('dragover',e=>e.preventDefault());
+svg.addEventListener('drop',e=>{e.preventDefault();const t=e.dataTransfer.getData('text/plain');if(T[t]){const p=pt(e);add(t,p.x,p.y)}});
+// select and move
+const MQ=document.createElement('div');MQ.style.cssText='position:fixed;border:1px dashed #2563eb;background:#2563eb22;pointer-events:none;display:none;z-index:9';document.body.appendChild(MQ);
+let mq=null;
+svg.addEventListener('pointerdown',e=>{
+ if(e.button===1||e.button===2||spaceDown){pan={sx:e.clientX,sy:e.clientY,vx:V.x,vy:V.y};svg.style.cursor='grabbing';svg.setPointerCapture(e.pointerId);e.preventDefault();return}
+ const g=e.target.closest('[data-id]'),multi=e.ctrlKey||e.metaKey||e.shiftKey;
+ if(!g){mq={x:e.clientX,y:e.clientY,base:multi?SEL.slice():[]};if(!multi)SEL=[];svg.setPointerCapture(e.pointerId);render();panel();return}
+ const id=+g.dataset.id;
+ if(multi){SEL=SEL.includes(id)?SEL.filter(v=>v!=id):SEL.concat(id);render();panel();return}
+ if(!SEL.includes(id))SEL=[id];
+ drag={p:pt(e),o:sel().map(i=>[i,i.x,i.y]),mv:false};svg.setPointerCapture(e.pointerId);render();panel()});
+svg.addEventListener('pointermove',e=>{
+ if(pan){const a=svg.getScreenCTM().a;V.x=pan.vx-(e.clientX-pan.sx)/a;V.y=pan.vy-(e.clientY-pan.sy)/a;setVB();return}
+ if(mq){const x=Math.min(mq.x,e.clientX),y=Math.min(mq.y,e.clientY),w=Math.abs(e.clientX-mq.x),h=Math.abs(e.clientY-mq.y);
+  Object.assign(MQ.style,{display:'block',left:x+'px',top:y+'px',width:w+'px',height:h+'px'});
+  const hit=[...svg.querySelectorAll('[data-id]')].filter(g=>{const r=g.getBoundingClientRect();return r.right>=x&&r.left<=x+w&&r.bottom>=y&&r.top<=y+h}).map(g=>+g.dataset.id);
+  SEL=[...new Set(mq.base.concat(hit))];render();return}
+ if(!drag)return;const p=pt(e),o0=drag.o[0],dx=sn(o0[1]+p.x-drag.p.x)-o0[1],dy=sn(o0[2]+p.y-drag.p.y)-o0[2];
+ drag.o.forEach(([i,x,y])=>{i.x=x+dx;i.y=y+dy});drag.mv=true;render()});
+svg.addEventListener('pointerup',()=>{if(drag&&drag.mv)commit();if(mq){MQ.style.display='none';panel()}drag=null;if(pan)svg.style.cursor=spaceDown?'grab':'';pan=null;mq=null});
+svg.addEventListener('contextmenu',e=>e.preventDefault());
+// zoom and pan
+function setVB(){svg.setAttribute('viewBox',`${V.x} ${V.y} ${S.w/V.z} ${S.h/V.z}`);const b=$('#zr');if(b)b.textContent=Math.round(V.z*100)+'%'}
+function zoomAt(f,cx,cy){const nz=Math.min(8,Math.max(.25,V.z*f));f=nz/V.z;V.x=cx-(cx-V.x)/f;V.y=cy-(cy-V.y)/f;V.z=nz;setVB()}
+svg.addEventListener('wheel',e=>{e.preventDefault();const p=pt(e);zoomAt(Math.exp(-e.deltaY*(e.deltaMode?.05:.0015)),p.x,p.y)},{passive:false});
+const mid=()=>[V.x+S.w/V.z/2,V.y+S.h/V.z/2];
+$('#mr').onclick=matchRoads;$('#zi').onclick=()=>zoomAt(1.25,...mid());$('#zo').onclick=()=>zoomAt(1/1.25,...mid());$('#zr').onclick=()=>{V={z:1,x:0,y:0};setVB()};
+document.addEventListener('keydown',e=>{if(e.code=='Space'&&!/INPUT|SELECT|BUTTON|TEXTAREA/.test(e.target.tagName)){e.preventDefault();spaceDown=true;svg.style.cursor='grab'}});
+document.addEventListener('keyup',e=>{if(e.code=='Space'){spaceDown=false;svg.style.cursor=''}});
+// properties
+const BT='<div class="row"><button data-a="l">⟲ 15°</button><button data-a="r">⟳ 15°</button><button data-a="d">Duplicate</button><button data-a="f">To front</button><button data-a="b">To back</button><button data-a="x">Delete</button></div>';
+function panel(){const a=sel(),el=$('#pp'),it=a[0];
+ if(!a.length){el.innerHTML='<h2>Properties</h2><p class="hint">New roads and markings automatically copy the size of the roads already placed; Match road sizes fixes the rest. Click an item to select it. Ctrl+click adds or removes items, or drag a box on empty space to select several.</p><p class="hint">Scroll to zoom; hold the right mouse button and drag to pan (Space+drag or middle-drag also work).</p><p class="hint">Keys: Delete removes, R rotates 15°, Ctrl+A selects all, Ctrl+C and Ctrl+V copy and paste, Ctrl+D duplicates, Ctrl+Z undoes, arrow keys nudge (Shift = 10).</p>';return}
+ if(a.length>1)el.innerHTML=`<h2>${a.length} items selected</h2><p class="hint">Drag any one to move them all. Rotate turns the group around its centre. Ctrl+click an item to remove it from the selection.</p>`+BT;
+ else{const t=T[it.type];
+  el.innerHTML=`<h2>${t.n}</h2><label>Rotation (${it.r}°)<input id="pr" type="range" min="-180" max="180" value="${it.r}"></label><label>Size (${Math.round(it.s*100)}%)<input id="ps" type="range" min="20" max="300" value="${Math.round(it.s*100)}"></label>`+(t.col?`<label>Colour<input id="pc" type="color" value="${it.col}"></label>`:'')+(t.txt!=null?`<label>Text<input id="pt" type="text" value="${esc(it.text)}"></label>`:'')+BT;
+  const bind=(id,fn)=>{const n=$(id);if(n){n.oninput=()=>{fn(n.value);render(true)};n.onchange=()=>{commit();panel()}}};
+  bind('#pr',v=>it.r=+v);bind('#ps',v=>it.s=v/100);bind('#pc',v=>it.col=v);bind('#pt',v=>it.text=v)}
+ if(a.some(i=>fam(i.type)=='road'))el.querySelector('.row').insertAdjacentHTML('beforeend','<button data-a="m" title="Give every road piece and marking the same size as the selected one">Match road sizes</button>');
+ el.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>({l:()=>rot(-15),r:()=>rot(15),d:dup,f:()=>z(1),b:()=>z(0),x:del,m:matchRoads})[b.dataset.a]())}
+document.addEventListener('keydown',e=>{if(/INPUT|SELECT/.test(e.target.tagName)&&e.target.type!='checkbox')return;
+ const k=e.key.toLowerCase(),a=sel(),mod=e.ctrlKey||e.metaKey;
+ if(mod&&k=='z'){e.preventDefault();undo()}
+ else if(mod&&k=='a'){e.preventDefault();SEL=S.items.map(i=>i.id);render();panel()}
+ else if(k=='escape'){SEL=[];render();panel()}
+ else if(mod&&k=='v'&&CB.length){e.preventDefault();SEL=clone(CB);CB=CB.map(o=>({...o,x:o.x+20,y:o.y+20}));commit();render();panel()}
+ else if(!a.length)return;
+ else if(mod&&k=='c'){CB=a.map(o=>({...o}))}
+ else if(k=='delete'||k=='backspace')del();
+ else if(k=='r')rot(e.shiftKey?-15:15);
+ else if(mod&&k=='d'){e.preventDefault();dup()}
+ else if(k.startsWith('arrow')){e.preventDefault();const n=e.shiftKey?10:1,dx=k=='arrowright'?n:k=='arrowleft'?-n:0,dy=k=='arrowdown'?n:k=='arrowup'?-n:0;a.forEach(i=>{i.x+=dx;i.y+=dy});render();clearTimeout(window.nt);window.nt=setTimeout(commit,400)}});
+// toolbar
+$('#undo').onclick=undo;
+$('#clear').onclick=()=>{if(confirm('Remove everything from the canvas?')){S.items=[];SEL=[];commit();render();panel()}};
+$('#size').onchange=e=>{[S.w,S.h]=e.target.value.split('x').map(Number);commit();render()};
+$('#bg').onchange=e=>{S.bg=e.target.value;commit();render()};
+const save=(blob,name)=>{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)};
+const fn=()=>($('#fn').value.trim()||'scene').replace(/[^\w\-. ]/g,'_');
+$('#sv').onclick=()=>save(new Blob([JSON.stringify(S)],{type:'application/json'}),fn()+'.json');
+$('#op').onclick=()=>$('#fi').click();
+$('#fi').onchange=e=>{const f=e.target.files[0];if(!f)return;f.text().then(t=>{try{const d=JSON.parse(t);if(!Array.isArray(d.items))throw 0;S=d;S.sel=null;sync();commit();render();panel()}catch{alert('That file is not a Quiz Scene Builder project.')}});e.target.value=''};
+function xml(){render(false);const c=svg.cloneNode(true);c.setAttribute('xmlns',NS);c.setAttribute('viewBox',`0 0 ${S.w} ${S.h}`);c.setAttribute('width',S.w);c.setAttribute('height',S.h);c.removeAttribute('id');c.removeAttribute('style');const s=new XMLSerializer().serializeToString(c);render();return s}
+$('#xs').onclick=()=>save(new Blob([xml()],{type:'image/svg+xml'}),fn()+'.svg');
+$('#xp').onclick=()=>{const s=xml(),im=new Image();im.onload=()=>{const k=document.createElement('canvas');k.width=S.w*2;k.height=S.h*2;const x=k.getContext('2d');x.drawImage(im,0,0,k.width,k.height);k.toBlob(b=>save(b,fn()+'.png'),'image/png')};im.onerror=()=>alert('PNG export failed. Try Export SVG instead.');im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s)};
+// start
+try{const d=JSON.parse(localStorage.getItem('qsb'));if(d&&Array.isArray(d.items)){S=d;S.sel=null}}catch{}
+sync();commit();render();panel();
+</script></body></html>
