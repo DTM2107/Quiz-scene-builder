@@ -26,23 +26,6 @@ A drag-and-drop tool for building the road scenes, junctions, vehicles and road 
 | Text labels | Extras, Text: change the text, colour and size in the side panel |
 | Match road sizes | "Match road sizes" button; new roads also copy the size of existing ones |
 
-## Deploy to GitHub Pages
-
-1. Create a new repository on GitHub and push this folder to the `main` branch.
-2. In the repository go to **Settings, Pages**, and set **Source** to **GitHub Actions**.
-3. The included workflow (`.github/workflows/pages.yml`) publishes the site on every push to `main`. The link appears in the **Actions** tab and under Settings, Pages.
-
-Prefer no workflow? Delete `.github/` and set **Source** to **Deploy from a branch** (`main`, `/ (root)`).
-
-```bash
-git init
-git add .
-git commit -m "Quiz scene builder"
-git branch -M main
-git remote add origin https://github.com/<your-username>/<your-repo>.git
-git push -u origin main
-```
-
 ## Notes on the signs
 
 Road rules follow Zimbabwe (driving on the left, white road markings). Signs are simplified redrawings based on the Zimbabwe Highway Code and the official road traffic signs chart (sign codes such as R103 or W308 are shown in the library). They are not exact copies, so check each one against the official source before using it in a question. The Highway Code is published by the Traffic Safety Council of Zimbabwe.

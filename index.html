@@ -92,6 +92,7 @@ const T={
 straight:{n:'Straight road',g:'Roads',t:.2,d:()=>R(-70,-200,140,400,RD)+L(0,-200,0,200)+L(-62,-200,-62,200,W,3).replace(/stroke-dasharray="[^"]*"/,'')+L(62,-200,62,200,W,3).replace(/stroke-dasharray="[^"]*"/,'')},
 cross:{n:'4-way junction',g:'Roads',t:.2,d:()=>R(-70,-200,140,400,RD)+R(-200,-70,400,140,RD)+L(0,-200,0,-70)+L(0,70,0,200)+L(-200,0,-70,0)+L(70,0,200,0)},
 tj:{n:'T-junction',g:'Roads',t:.2,d:()=>R(-70,-200,140,400,RD)+R(70,-70,130,140,RD)+L(0,-200,0,-70)+L(0,70,0,200)+L(70,0,200,0)},
+yj:{n:'Y-junction',g:'Roads',t:.2,d:()=>{const A=38,br=a=>`<g transform="rotate(${a})">${R(-70,-200,140,200,RD)}</g>`,ln=a=>`<g transform="rotate(${a})">${L(0,0,0,-200)}</g>`;return R(-70,0,140,200,RD)+br(-A)+br(A)+L(0,0,0,200)+ln(-A)+ln(A)}},
 curve:{n:'Curve',g:'Roads',t:.2,d:()=>`<g transform="translate(-115 -115)">${R(-70,140,140,160,RD)+R(140,-70,160,140,RD)}<path d="M-70 140A210 210 0 0 1 140-70L140 70A70 70 0 0 0 70 140Z" fill="${RD}"/>${L(0,140,0,300)+L(140,0,300,0)}<path d="M0 140A140 140 0 0 1 140 0" fill="none" stroke="${Y}" stroke-width="4" stroke-dasharray="22 16"/></g>`},
 round:{n:'Roundabout',g:'Roads',t:.2,d:()=>R(-70,-200,140,400,RD)+R(-200,-70,400,140,RD)+`<circle r="135" fill="${RD}"/><circle r="55" fill="#5a9e4b" stroke="#fff" stroke-width="3"/>`+L(0,-200,0,-135)+L(0,135,0,200)+L(-200,0,-135,0)+L(135,0,200,0)},
 xwalk:{n:'Crosswalk',g:'Markings',t:.5,d:()=>Array.from({length:7},(_,k)=>R(-63+k*21,-20,11,40,W)).join('')},
