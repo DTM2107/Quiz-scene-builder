@@ -27,7 +27,7 @@ label{display:block;margin:8px 0;color:var(--m);font-size:12px}label input[type=
 @media(max-width:820px){main{grid-template-columns:1fr;grid-auto-rows:auto;overflow:auto}#pal,#pp{border:0;max-height:220px}}
 </style></head><body>
 <header>
-<h1>Quiz Scene Builder <small style="font-weight:400;color:var(--m)">build 15 Nov (with end-of-speed sign)</small></h1>
+<h1>Quiz Scene Builder <small style="font-weight:400;color:var(--m)">build 15 Nov (more signs from the Zimbabwe chart)</small></h1>
 <button id="undo">Undo</button><button id="clear">Clear</button>
 <select id="size" aria-label="Canvas size"><option value="800x600">800 × 600</option><option value="1024x768">1024 × 768</option><option value="600x600">600 × 600</option><option value="1280x720">1280 × 720</option><option value="400x400">400 × 400</option></select>
 <select id="bg" aria-label="Background"><option value="#7cb86a">Grass</option><option value="#e6d9b8">Sand</option><option value="#ffffff">White</option><option value="#9aa3ad">Grey</option><option value="none">Transparent</option></select>
@@ -108,7 +108,7 @@ ped:{n:'Pedestrian',g:'Vehicles',t:1.2,col:'#7c3aed',d:i=>`<ellipse rx="14" ry="
 stop:{n:'Stop',g:'Regulatory',t:.8,d:()=>`<polygon points="${poly(8,32,Math.PI/8)}" fill="#c1121f" stroke="#fff" stroke-width="3"/>`+tx('STOP',17)},
 yield:{n:'Give way',g:'Regulatory',t:.8,d:()=>`<polygon points="-32,-24 32,-24 0,30" fill="#fff" stroke="#c1121f" stroke-width="7" stroke-linejoin="round"/>`},
 speed:{n:'Speed limit',g:'Prohibition',t:.8,txt:'50',d:i=>`<circle r="30" fill="#fff" stroke="#c1121f" stroke-width="7"/>`+tx(i.text,i.text.length>2?18:24,'#111')},
-speedend:{n:'End of speed limit (R201-600)',g:'Prohibition',t:.8,txt:'100',d:i=>`<circle r="30" fill="#fff" stroke="#c1121f" stroke-width="7"/>`+tx(i.text,i.text.length>2?18:24,'#111')+`<path d="M-27-27L27 27M27-27L-27 27" stroke="#c1121f" stroke-width="6" stroke-linecap="round"/>`},
+speedend:{n:'End of speed restriction',g:'Prohibition',t:.8,d:()=>`<circle r="30" fill="#fff" stroke="#111" stroke-width="3"/><line x1="-20.5" y1="20.5" x2="20.5" y2="-20.5" stroke="#111" stroke-width="8"/>`},
 noent:{n:'No entry',g:'Prohibition',t:.8,d:()=>`<circle r="31" fill="#c1121f"/>`+R(-20,-5,40,10,W)},
 warn:{n:'General warning',g:'Warning',t:.8,txt:'!',d:i=>`<polygon points="0,-32 33,25 -33,25" fill="#fff" stroke="#c1121f" stroke-width="7" stroke-linejoin="round"/>`+tx(i.text,26,'#111',6)},
 lr:{n:'Light: red',g:'Signals',t:.7,d:light(0)},ly:{n:'Light: amber',g:'Signals',t:.7,d:light(1)},lg:{n:'Light: green',g:'Signals',t:.7,d:light(2)},
@@ -150,6 +150,30 @@ T.arrowA=AR('Arrow (red)','#dc2626',16,[{x:0,y:55},{x:0,y:-55}]);
 T.arrowB=AR('Arrow (blue)','#2563eb',7,[{x:0,y:55},{x:0,y:-55}]);
 T.arrowC=AR('Bent arrow','#2563eb',7,[{x:70,y:35},{x:0,y:35},{x:0,y:-45}]);
 T.arrowD=AR('Curved arrow','#16a34a',8,[{x:-55,y:50},{x:-55,y:-20},{x:45,y:-50}],true);
+G.H=c=>tx('H',36,c);
+G.dip=c=>`<path d="M-18-6Q0 20 18-6" ${S5(c,5)}/>`;
+G.narrowR=c=>`<path d="M-10-16V16M10-16V-6Q2 0 10 6V16" ${S5(c,3.5)}/>`;G.narrowL=M(G.narrowR);
+G.bridge=c=>`<path d="M-18 12Q0-14 18 12M-18 12H18" ${S5(c,3.5)}/>`;
+G.grid=c=>`<rect x="-16" y="-8" width="32" height="18" fill="none" stroke="${c}" stroke-width="3"/><path d="M-8-8V10M0-8V10M8-8V10" ${S5(c,3)}/>`;
+G.works=c=>`<circle cx="-6" cy="-12" r="4" fill="${c}"/><path d="M-6-7V3L-12 10M-6 3L0 10M-6-2L4-6" ${S5(c,3)}/><path d="M-18 16Q-8 8 6 16Z" fill="${c}"/>`;
+G.elephant=c=>`<ellipse cx="-2" cy="-2" rx="13" ry="9" fill="${c}"/><circle cx="12" cy="-6" r="6" fill="${c}"/><path d="M17-3Q20 8 15 12" ${S5(c,3.5)}/><path d="M-10 6V16M-3 6V16M4 6V16M9 6V16" ${S5(c,4)}/>`;
+G.antelope=c=>`<ellipse cx="-3" cy="2" rx="13" ry="6" fill="${c}"/><path d="M8-1L14-12" ${S5(c,4)}/><circle cx="15" cy="-13" r="3" fill="${c}"/><path d="M15-16L12-22M17-16L20-22" ${S5(c,2)}/><path d="M-12 7V17M-6 7V17M4 7V17M10 7V17" ${S5(c,3)}/>`;
+G.gravel=c=>`<path d="M-14 16L-4-16H4L14 16Z" fill="none" stroke="${c}" stroke-width="3"/><circle cx="-4" cy="6" r="2" fill="${c}"/><circle cx="5" cy="9" r="2" fill="${c}"/><circle cx="0" cy="-4" r="2" fill="${c}"/><circle cx="-1" cy="13" r="1.8" fill="${c}"/>`;
+G.barrier=c=>`<rect x="-17" y="-6" width="34" height="9" fill="#fff" stroke="${c}" stroke-width="2"/><path d="M-11-6L-14 3M-3-6L-6 3M5-6L2 3M13-6L10 3M-12 3V16M12 3V16" ${S5(c,3)}/>`;
+const mkInfo=f=>()=>R(-30,-30,60,60,'#1d4ed8','rx="5"')+`<g transform="scale(.8)">${f('#fff')}</g>`;
+const lightA=k=>()=>R(-14,-36,28,72,'#222','rx="6"')+`<circle cy="-20" r="8" fill="#444"/><circle cy="0" r="8" fill="#444"/><circle cy="20" r="8" fill="#22c55e"/><g transform="translate(0 20) scale(.38)">${G[k]('#111')}</g>`;
+addT('Warning',[['wdip','Dip in road','dip'],['wnr','Road narrows right','narrowR'],['wnl','Road narrows left','narrowL'],['wbr','Narrow bridge (W326)','bridge'],['wgrid','Grid ahead','grid'],['wwork','Road workers','works'],['welef','Elephants','elephant'],['want','Wild animals (antelope)','antelope'],['wgrav','Gravel road','gravel'],['wbar','Physical barrier ahead','barrier']],mkW);
+T.iOne={n:'One way',g:'Information',t:.7,d:()=>R(-34,-22,68,44,'#1d4ed8','rx="4"')+`<polygon points="-24,-4 6,-4 6,-12 24,0 6,12 6,4 -24,4" fill="#fff"/>`};
+T.iPark={n:'Parking area',g:'Information',t:.8,d:mkInfo(G.P)};
+T.iBus={n:'Bus stop',g:'Information',t:.8,d:mkInfo(G.bus)};
+T.iTaxi={n:'Taxi rank',g:'Information',t:.8,d:()=>R(-30,-30,60,60,'#1d4ed8','rx="5"')+`<g transform="translate(0 -6) scale(.8)">${G.car('#fff')}</g>`+tx('TAXI',10,W,18)};
+T.iThru={n:'No through road',g:'Information',t:.8,d:mkInfo(G.tj)};
+T.iHosp={n:'Hospital',g:'Information',t:.8,d:mkInfo(G.H)};
+T.iAid={n:'First aid',g:'Information',t:.8,d:()=>R(-30,-30,60,60,'#16a34a','rx="5"')+R(-5,-18,10,36,W)+R(-18,-5,36,10,W)};
+T.r215={n:'No overtaking by goods vehicles (R215)',g:'Prohibition',t:.8,d:()=>`<circle r="30" fill="#fff" stroke="#c1121f" stroke-width="6"/><g transform="translate(-10 -1) scale(.42)">${G.truck('#111')}</g><g transform="translate(10 -1) scale(.42)">${G.truck('#111')}</g><line x1="-21" y1="21" x2="21" y2="-21" stroke="#c1121f" stroke-width="5"/>`};
+T.lgl={n:'Signal: green arrow left',g:'Signals',t:.7,d:lightA('left')};
+T.lgr={n:'Signal: green arrow right',g:'Signals',t:.7,d:lightA('right')};
+T.lgu={n:'Signal: green arrow ahead',g:'Signals',t:.7,d:lightA('up')};
 let S={w:800,h:600,bg:'#7cb86a',items:[],nid:0,sel:null},H=[],drag=null,V={z:1,x:0,y:0},pan=null,spaceDown=false,SEL=[],CB=[],hd=null,STEP=15;
 const svg=$('#c'),get=id=>S.items.find(i=>i.id==id),sn=v=>$('#snap').checked?Math.round(v/10)*10:v;
 const pt=e=>{const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(svg.getScreenCTM().inverse())};
@@ -185,7 +209,7 @@ function orient(h){const a=sel();if(!a.length)return;a.forEach(i=>{
  if(i.pts&&i.pts.length>1){const A=toW(i,i.pts[0]),B=toW(i,i.pts[i.pts.length-1]),th=Math.atan2(B.y-A.y,B.x-A.x)*180/Math.PI,tg=h?rz(th/180)*180:rz((th+90)/180)*180-90;i.r=nrm(i.r+tg-th)}
  else i.r=nrm(h?rz((i.r-90)/180)*180+90:rz(i.r/180)*180)});commit();render();panel()}
 // palette
-$('#pal').innerHTML='<div id="lib"></div>'+['Roads','Markings','Arrows','Vehicles','Regulatory','Prohibition','Warning','Signals','Extras'].map(g=>`<h2>${g}</h2><div class="grid">`+Object.entries(T).filter(([k,t])=>t.g==g).map(([k,t])=>`<div class="pi" draggable="true" data-t="${k}" title="${t.n}: drag onto the canvas, or click"><svg viewBox="-50 -50 100 100"><g transform="scale(${t.t})">${t.d({col:t.col,text:t.txt,pts:t.pts,w:t.w,smooth:t.smooth})}</g></svg><span>${t.n}</span></div>`).join('')+'</div>').join('')+'<p class="hint">Drag items onto the canvas, or click to add at the centre. Arrows: white is informative, yellow is regulatory (change it under Colour).</p>';
+$('#pal').innerHTML='<div id="lib"></div>'+['Roads','Markings','Arrows','Vehicles','Regulatory','Prohibition','Warning','Information','Signals','Extras'].map(g=>`<h2>${g}</h2><div class="grid">`+Object.entries(T).filter(([k,t])=>t.g==g).map(([k,t])=>`<div class="pi" draggable="true" data-t="${k}" title="${t.n}: drag onto the canvas, or click"><svg viewBox="-50 -50 100 100"><g transform="scale(${t.t})">${t.d({col:t.col,text:t.txt,pts:t.pts,w:t.w,smooth:t.smooth})}</g></svg><span>${t.n}</span></div>`).join('')+'</div>').join('')+'<p class="hint">Drag items onto the canvas, or click to add at the centre. Arrows: white is informative, yellow is regulatory (change it under Colour).</p>';
 $('#pal').addEventListener('dragstart',e=>{const p=e.target.closest('.pi');if(p)e.dataTransfer.setData('text/plain',p.dataset.t)});
 $('#pal').addEventListener('click',e=>{
  const d=e.target.closest('[data-del]');if(d){if(confirm('Delete this saved item from your library?')){LIB=LIB.filter(l=>l.id!=d.dataset.del);saveLib();buildLib()}return}
